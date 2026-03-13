@@ -1,0 +1,32 @@
+[package]
+name = "aegis-cli"
+description = "CLI for aegis — dirmacs system configuration manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "aegis"
+path = "src/main.rs"
+
+[dependencies]
+aegis-core = { workspace = true }
+aegis-opencode = { workspace = true }
+aegis-toolchain = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+console = { workspace = true }
+indicatif = { workspace = true }
+dialoguer = { workspace = true }
+similar = { workspace = true }
+dirs = { workspace = true }
+shellexpand = { workspace = true }

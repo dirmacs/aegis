@@ -1,0 +1,24 @@
+[module]
+name = "dirmacs"
+description = "Dirmacs ecosystem toolchain (ares, daedra, thulp, eruka, lancor)"
+
+[[packages]]
+name = "ares-server"
+install_method = "cargo"
+cargo_crate = "ares-server"
+git_repo = "https://github.com/dirmacs/ares"
+version_check = "ares-server --version"
+
+[[packages]]
+name = "daedra"
+install_method = "cargo"
+cargo_crate = "daedra"
+git_repo = "https://github.com/dirmacs/daedra"
+version_check = "daedra --version"
+
+[[packages]]
+name = "thulp"
+install_method = "cargo"
+cargo_crate = "thulp"
+git_repo = "https://github.com/dirmacs/thulp"
+version_check = "thulp --version"

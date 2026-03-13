@@ -1,0 +1,58 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["dirmacs"]
+repository = "https://github.com/dirmacs/aegis"
+
+[workspace.dependencies]
+# Internal crates
+aegis-core = { path = "crates/aegis-core" }
+aegis-opencode = { path = "crates/aegis-opencode" }
+aegis-toolchain = { path = "crates/aegis-toolchain" }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Template engine
+tera = "1"
+
+# Diffing
+similar = { version = "2", features = ["text"] }
+
+# System utilities
+which = "7"
+semver = "1"
+dirs = "6"
+walkdir = "2"
+sha2 = "0.10"
+shellexpand = "3"
+
+# Terminal UI
+console = "0.15"
+indicatif = "0.17"
+dialoguer = "0.11"
+
+# LLM inference
+lancor = "0.1"

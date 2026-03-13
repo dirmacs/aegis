@@ -1,0 +1,23 @@
+[module]
+name = "dev-tools"
+description = "Development tool configurations (git, cargo, bat)"
+
+[[packages]]
+name = "delta"
+install_method = "cargo"
+cargo_crate = "git-delta"
+version_check = "delta --version"
+
+[[configs]]
+source = "git/gitconfig"
+target = "~/.gitconfig"
+strategy = "symlink"
+
+[[configs]]
+source = "bat/config"
+target = "~/.config/bat/config"
+strategy = "symlink"
+
+[[sync_rules]]
+live_path = "~/.gitconfig"
+managed_path = "git/gitconfig"

@@ -1,0 +1,44 @@
+[aegis]
+version = "0.1.0"
+description = "Dirmacs development environment"
+default_profile = "dev-vps"
+strategy = "symlink"
+
+[variables]
+hostname = { source = "command", value = "hostname" }
+user = { source = "env", value = "USER" }
+nim_api_key = { source = "env", value = "NIM_API_KEY" }
+
+[profiles.dev-vps]
+description = "Development VPS with full tooling"
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs"]
+variables = { gpu_available = "false" }
+
+[profiles.workstation]
+description = "Local workstation with GPU"
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs"]
+variables = { gpu_available = "true" }
+
+[profiles.ci]
+description = "Minimal CI environment"
+modules = ["shell", "dev-tools"]
+
+[[modules]]
+name = "shell"
+path = "modules/shell"
+
+[[modules]]
+name = "terminal"
+path = "modules/terminal"
+
+[[modules]]
+name = "ai-tools"
+path = "modules/ai-tools"
+
+[[modules]]
+name = "dev-tools"
+path = "modules/dev-tools"
+
+[[modules]]
+name = "dirmacs"
+path = "modules/dirmacs"

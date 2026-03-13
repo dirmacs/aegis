@@ -1,0 +1,14 @@
+[module]
+name = "terminal"
+description = "Terminal multiplexer configuration (zellij)"
+
+[[packages]]
+name = "zellij"
+install_method = "cargo"
+cargo_crate = "zellij"
+version_check = "zellij --version"
+
+[[configs]]
+source = "zellij/config.kdl"
+target = "~/.config/zellij/config.kdl"
+strategy = "symlink"
