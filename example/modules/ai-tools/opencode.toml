@@ -1,0 +1,189 @@
+[opencode]
+plugin = ["oh-my-opencode@latest"]
+
+[opencode.providers.nvidia]
+npm = "@ai-sdk/openai-compatible"
+name = "NVIDIA NIM"
+base_url = "https://integrate.api.nvidia.com/v1"
+api_key_env = "NIM_API_KEY"
+
+[opencode.models.qwen3-5-122b]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-122b-a10b"
+name = "Qwen 3.5 122B MoE (Daily Driver)"
+context_length = 262144
+max_output = 16384
+temperature = 0.6
+top_p = 0.95
+thinking = true
+
+[opencode.models.qwen3-5-397b]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-397b-a17b"
+name = "Qwen 3.5 397B MoE (Heavy)"
+context_length = 262144
+max_output = 32768
+temperature = 0.6
+top_p = 0.95
+thinking = true
+
+[opencode.models.glm4-7]
+provider = "nvidia"
+model_id = "z-ai/glm4.7"
+name = "GLM 4.7"
+context_length = 131072
+max_output = 131072
+temperature = 1.0
+top_p = 0.95
+thinking = true
+
+[opencode.models.step3-5-flash]
+provider = "nvidia"
+model_id = "stepfun-ai/step-3.5-flash"
+name = "Step 3.5 Flash"
+context_length = 262144
+max_output = 16384
+temperature = 1.0
+
+[opencode.models.minimax-m2-5]
+provider = "nvidia"
+model_id = "minimaxai/minimax-m2.5"
+name = "MiniMax M2.5"
+context_length = 204800
+max_output = 8192
+
+[opencode.models.minimax-m2-1]
+provider = "nvidia"
+model_id = "minimaxai/minimax-m2.1"
+name = "MiniMax M2.1"
+context_length = 131072
+max_output = 8192
+
+[opencode.models.kimi-k2-5]
+provider = "nvidia"
+model_id = "moonshotai/kimi-k2.5"
+name = "Kimi K2.5"
+context_length = 262144
+max_output = 16384
+thinking = true
+
+[opencode.default_model]
+model = "qwen3-5-122b"
+
+[opencode.mcp_servers.context7]
+type = "remote"
+url = "https://mcp.context7.com/mcp"
+
+[opencode.mcp_servers.daedra]
+type = "stdio"
+command = "daedra"
+args = ["serve", "--transport", "stdio", "--quiet"]
+
+[opencode.mcp_servers.chrome-devtools]
+type = "stdio"
+command = "bunx"
+args = ["chrome-devtools-mcp"]
+
+[opencode.mcp_servers.gitmcp]
+type = "remote"
+url = "https://gitmcp.io/docs"
+
+[opencode.mcp_servers.sequential-thinking]
+type = "stdio"
+command = "bunx"
+args = ["mcp-sequentialthinking-tools"]
+
+[opencode.mcp_servers.clear-thought]
+type = "stdio"
+command = "bunx"
+args = ["@waldzellai/clear-thought"]
+
+[opencode.mcp_servers.stochastic-thinking]
+type = "stdio"
+command = "bunx"
+args = ["@waldzellai/stochasticthinking"]
+
+[opencode.mcp_servers.structured-thinking]
+type = "stdio"
+command = "bunx"
+args = ["structured-thinking"]
+
+[opencode.mcp_servers.shannon-thinking]
+type = "stdio"
+command = "bunx"
+args = ["server-shannon-thinking"]
+timeout = 60
+
+[opencode.mcp_servers.tavily]
+type = "stdio"
+command = "bunx"
+args = ["tavily-mcp"]
+env = { TAVILY_API_KEY = "$TAVILY_API_KEY" }
+
+# oh-my-opencode agent definitions
+[oh_my_opencode]
+disabled_hooks = ["category-skill-reminder"]
+
+[oh_my_opencode.agents.local]
+model = "qwen3-5-122b"
+
+[oh_my_opencode.agents.sisyphus]
+model = "qwen3-5-122b"
+temperature = 0.6
+top_p = 0.95
+max_tokens = 32768
+
+[oh_my_opencode.agents.hephaestus]
+model = "minimax-m2-5"
+
+[oh_my_opencode.agents.oracle]
+model = "qwen3-5-397b"
+
+[oh_my_opencode.agents.librarian]
+model = "glm4-7"
+
+[oh_my_opencode.agents.explore]
+model = "minimax-m2-1"
+
+[oh_my_opencode.agents.multimodal-looker]
+model = "kimi-k2-5"
+
+[oh_my_opencode.agents.prometheus]
+model = "kimi-k2-5"
+
+[oh_my_opencode.agents.metis]
+model = "minimax-m2-1"
+
+[oh_my_opencode.agents.momus]
+model = "glm4-7"
+
+[oh_my_opencode.agents.atlas]
+model = "qwen3-5-122b"
+
+[oh_my_opencode.agents.sisyphus-junior]
+model = "minimax-m2-1"
+max_tokens = 32768
+
+[oh_my_opencode.categories.visual-engineering]
+model = "kimi-k2-5"
+
+[oh_my_opencode.categories.ultrabrain]
+model = "minimax-m2-5"
+
+[oh_my_opencode.categories.deep]
+model = "qwen3-5-397b"
+
+[oh_my_opencode.categories.artistry]
+model = "qwen3-5-397b"
+
+[oh_my_opencode.categories.quick]
+model = "minimax-m2-1"
+
+[oh_my_opencode.categories.unspecified-low]
+model = "glm4-7"
+
+[oh_my_opencode.categories.unspecified-high]
+model = "qwen3-5-122b"
+
+[oh_my_opencode.categories.writing]
+model = "qwen3-5-122b"

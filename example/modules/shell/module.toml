@@ -1,0 +1,58 @@
+[module]
+name = "shell"
+description = "Shell configuration (bash, starship, fzf, zoxide)"
+
+[[packages]]
+name = "starship"
+install_method = "cargo"
+cargo_crate = "starship"
+version_check = "starship --version"
+
+[[packages]]
+name = "bat"
+install_method = "cargo"
+cargo_crate = "bat"
+version_check = "bat --version"
+
+[[packages]]
+name = "eza"
+install_method = "cargo"
+cargo_crate = "eza"
+version_check = "eza --version"
+
+[[packages]]
+name = "fd"
+install_method = "cargo"
+cargo_crate = "fd-find"
+version_check = "fd --version"
+
+[[packages]]
+name = "rg"
+install_method = "cargo"
+cargo_crate = "ripgrep"
+version_check = "rg --version"
+
+[[packages]]
+name = "zoxide"
+install_method = "cargo"
+cargo_crate = "zoxide"
+version_check = "zoxide --version"
+
+[[packages]]
+name = "fzf"
+install_method = "apt"
+version_check = "fzf --version"
+
+[[configs]]
+source = "bashrc"
+target = "~/.bashrc"
+strategy = "symlink"
+
+[[configs]]
+source = "starship.toml"
+target = "~/.config/starship.toml"
+strategy = "symlink"
+
+[[sync_rules]]
+live_path = "~/.bashrc"
+managed_path = "bashrc"

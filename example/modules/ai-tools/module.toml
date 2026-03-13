@@ -1,0 +1,8 @@
+[module]
+name = "ai-tools"
+description = "AI/LLM tool configurations (opencode, claude code)"
+
+[[configs]]
+source = "claude/settings.json"
+target = "~/.claude/settings.json"
+strategy = "copy"
