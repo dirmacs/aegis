@@ -79,6 +79,11 @@ impl OpencodeInput {
 
     /// Generate the opencode.json output.
     pub fn generate(&self) -> Result<OpencodeJson> {
+        // Validate all model parameters
+        for (key, model) in &self.models {
+            model.validate(key)?;
+        }
+
         let providers = self.build_providers()?;
         let default_model = self.resolve_default_model()?;
         let mcp = self.build_mcp();
@@ -110,7 +115,7 @@ impl OpencodeInput {
                     api_key: provider_input
                         .api_key_env
                         .as_ref()
-                        .map(|env| format!("{{{{env:{env}}}}}")),
+                        .map(|env| format!("{{env:{env}}}")),
                 })
             } else {
                 None
@@ -209,9 +214,15 @@ impl OpencodeInput {
         // Look up the model key to get provider/model_id
         if let Some(model) = self.models.get(default) {
             Ok(format!("{}/{}", model.provider, model.model_id))
-        } else {
-            // Assume it's already in provider/model_id format
+        } else if default.contains('/') {
+            // Already in provider/model_id format
             Ok(default.to_string())
+        } else {
+            bail!(
+                "default model '{}' not found in defined models (available: {})",
+                default,
+                self.models.keys().cloned().collect::<Vec<_>>().join(", ")
+            );
         }
     }
 
@@ -273,5 +284,100 @@ args = ["serve", "--transport", "stdio", "--quiet"]
         assert!(json.provider.as_ref().unwrap().contains_key("nvidia"));
         assert!(json.mcp.as_ref().unwrap().contains_key("daedra"));
         assert_eq!(json.plugin.as_ref().unwrap(), &["oh-my-opencode@latest"]);
+    }
+
+    #[test]
+    fn unknown_default_model_errors() {
+        let toml_str = r#"
+[opencode]
+
+[opencode.providers.nvidia]
+npm = "@ai-sdk/openai-compatible"
+
+[opencode.models.qwen3-5-122b]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-122b-a10b"
+
+[opencode.default_model]
+model = "nonexistent-model"
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeInput,
+        }
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let result = wrapper.opencode.generate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn invalid_temperature_errors() {
+        let toml_str = r#"
+[opencode]
+
+[opencode.providers.nvidia]
+npm = "@ai-sdk/openai-compatible"
+
+[opencode.models.bad]
+provider = "nvidia"
+model_id = "test/model"
+temperature = 5.0
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeInput,
+        }
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let result = wrapper.opencode.generate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("temperature"));
+    }
+
+    #[test]
+    fn invalid_top_p_errors() {
+        let toml_str = r#"
+[opencode]
+
+[opencode.providers.nvidia]
+npm = "@ai-sdk/openai-compatible"
+
+[opencode.models.bad]
+provider = "nvidia"
+model_id = "test/model"
+top_p = 1.5
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeInput,
+        }
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let result = wrapper.opencode.generate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("top_p"));
+    }
+
+    #[test]
+    fn full_model_ref_as_default_passes() {
+        let toml_str = r#"
+[opencode]
+
+[opencode.providers.nvidia]
+npm = "@ai-sdk/openai-compatible"
+
+[opencode.models.qwen3]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-122b"
+
+[opencode.default_model]
+model = "nvidia/qwen/qwen3.5-122b"
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeInput,
+        }
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let json = wrapper.opencode.generate().unwrap();
+        assert_eq!(json.model.as_deref(), Some("nvidia/qwen/qwen3.5-122b"));
     }
 }

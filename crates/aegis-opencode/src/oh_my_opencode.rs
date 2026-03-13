@@ -112,9 +112,15 @@ fn resolve_model_ref(
 ) -> Result<String> {
     if let Some(model) = models.get(model_key) {
         Ok(format!("{}/{}", model.provider, model.model_id))
-    } else {
-        // Assume it's already a full model reference
+    } else if model_key.contains('/') {
+        // Already in provider/model_id format
         Ok(model_key.to_string())
+    } else {
+        anyhow::bail!(
+            "model '{}' not found in defined models (available: {})",
+            model_key,
+            models.keys().cloned().collect::<Vec<_>>().join(", ")
+        );
     }
 }
 
@@ -180,6 +186,89 @@ model = "qwen3-5-122b"
         assert_eq!(
             json.categories.get("deep").unwrap().model,
             "nvidia/qwen/qwen3.5-122b-a10b"
+        );
+    }
+
+    #[test]
+    fn unknown_agent_model_errors() {
+        let toml_str = r#"
+[opencode.models.qwen3-5-122b]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-122b-a10b"
+
+[oh_my_opencode]
+
+[oh_my_opencode.agents.bad-agent]
+model = "nonexistent-model"
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeModels,
+            oh_my_opencode: OhMyOpencodeInput,
+        }
+        #[derive(Deserialize)]
+        struct OpencodeModels {
+            models: HashMap<String, ModelInput>,
+        }
+
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let result = wrapper.oh_my_opencode.generate(&wrapper.opencode.models);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn unknown_category_model_errors() {
+        let toml_str = r#"
+[opencode.models.qwen3-5-122b]
+provider = "nvidia"
+model_id = "qwen/qwen3.5-122b-a10b"
+
+[oh_my_opencode]
+
+[oh_my_opencode.categories.bad-cat]
+model = "nonexistent-model"
+"#;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            opencode: OpencodeModels,
+            oh_my_opencode: OhMyOpencodeInput,
+        }
+        #[derive(Deserialize)]
+        struct OpencodeModels {
+            models: HashMap<String, ModelInput>,
+        }
+
+        let wrapper: Wrapper = toml::from_str(toml_str).unwrap();
+        let result = wrapper.oh_my_opencode.generate(&wrapper.opencode.models);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn full_model_ref_in_agent_passes() {
+        let models = HashMap::new(); // No defined models
+        let input = OhMyOpencodeInput {
+            disabled_hooks: vec![],
+            agents: {
+                let mut m = HashMap::new();
+                m.insert(
+                    "test".to_string(),
+                    AgentInput {
+                        model: "nvidia/qwen/qwen3.5-122b".to_string(),
+                        temperature: None,
+                        top_p: None,
+                        max_tokens: None,
+                    },
+                );
+                m
+            },
+            categories: HashMap::new(),
+        };
+
+        let json = input.generate(&models).unwrap();
+        assert_eq!(
+            json.agents.get("test").unwrap().model,
+            "nvidia/qwen/qwen3.5-122b"
         );
     }
 }

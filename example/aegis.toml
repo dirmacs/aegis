@@ -7,7 +7,7 @@ strategy = "symlink"
 [variables]
 hostname = { source = "command", value = "hostname" }
 user = { source = "env", value = "USER" }
-nim_api_key = { source = "env", value = "NIM_API_KEY" }
+nvidia_api_key = { source = "env", value = "NVIDIA_API_KEY" }
 
 [profiles.dev-vps]
 description = "Development VPS with full tooling"

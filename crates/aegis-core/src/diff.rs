@@ -99,3 +99,48 @@ impl std::fmt::Display for DiffResult {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identical_strings_no_changes() {
+        let result = diff_strings("hello\nworld\n", "hello\nworld\n", "a", "b");
+        assert!(!result.has_changes);
+        assert_eq!(format!("{result}"), "no changes");
+    }
+
+    #[test]
+    fn added_line() {
+        let result = diff_strings("line1\n", "line1\nline2\n", "old", "new");
+        assert!(result.has_changes);
+        let output = format!("{result}");
+        assert!(output.contains("+line2"));
+    }
+
+    #[test]
+    fn removed_line() {
+        let result = diff_strings("line1\nline2\n", "line1\n", "old", "new");
+        assert!(result.has_changes);
+        let output = format!("{result}");
+        assert!(output.contains("-line2"));
+    }
+
+    #[test]
+    fn modified_line() {
+        let result = diff_strings("hello\n", "goodbye\n", "old", "new");
+        assert!(result.has_changes);
+        let output = format!("{result}");
+        assert!(output.contains("-hello"));
+        assert!(output.contains("+goodbye"));
+    }
+
+    #[test]
+    fn labels_in_output() {
+        let result = diff_strings("a\n", "b\n", "file1.txt", "file2.txt");
+        let output = format!("{result}");
+        assert!(output.contains("--- file1.txt"));
+        assert!(output.contains("+++ file2.txt"));
+    }
+}

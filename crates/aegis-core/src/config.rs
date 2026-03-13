@@ -160,3 +160,128 @@ pub enum ConfigStatus {
     Drifted(String),
     Error(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn deploy_copy_creates_file() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Copy, false).unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "hello");
+    }
+
+    #[test]
+    fn deploy_symlink_creates_link() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Symlink, false).unwrap();
+        assert!(target.is_symlink());
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "hello");
+    }
+
+    #[test]
+    fn deploy_symlink_is_idempotent() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Symlink, false).unwrap();
+        // Second deploy should not error
+        deploy_config(&source, &target, LinkStrategy::Symlink, false).unwrap();
+        assert!(target.is_symlink());
+    }
+
+    #[test]
+    fn undeploy_removes_file() {
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("target.txt");
+        std::fs::write(&target, "hello").unwrap();
+
+        undeploy_config(&target, false).unwrap();
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn undeploy_nonexistent_is_ok() {
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("nonexistent.txt");
+        undeploy_config(&target, false).unwrap();
+    }
+
+    #[test]
+    fn check_config_ok_symlink() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Symlink, false).unwrap();
+        assert_eq!(check_config(&source, &target, LinkStrategy::Symlink), ConfigStatus::Ok);
+    }
+
+    #[test]
+    fn check_config_missing() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        assert_eq!(check_config(&source, &target, LinkStrategy::Symlink), ConfigStatus::Missing);
+    }
+
+    #[test]
+    fn check_config_ok_copy() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Copy, false).unwrap();
+        assert_eq!(check_config(&source, &target, LinkStrategy::Copy), ConfigStatus::Ok);
+    }
+
+    #[test]
+    fn check_config_drifted_copy() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+        std::fs::write(&target, "changed").unwrap();
+
+        match check_config(&source, &target, LinkStrategy::Copy) {
+            ConfigStatus::Drifted(_) => {}
+            other => panic!("expected Drifted, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dry_run_does_not_create_file() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("source.txt");
+        let target = dir.path().join("target.txt");
+        std::fs::write(&source, "hello").unwrap();
+
+        deploy_config(&source, &target, LinkStrategy::Copy, true).unwrap();
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn deploy_source_missing_errors() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("nonexistent.txt");
+        let target = dir.path().join("target.txt");
+
+        assert!(deploy_config(&source, &target, LinkStrategy::Copy, false).is_err());
+    }
+}
