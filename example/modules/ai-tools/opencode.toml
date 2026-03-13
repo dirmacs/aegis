@@ -7,7 +7,8 @@ name = "NVIDIA NIM"
 base_url = "https://integrate.api.nvidia.com/v1"
 api_key_env = "NVIDIA_API_KEY"
 
-# --- Models: ordered by nimakai benchmark latency (2026-03-13) ---
+# --- Models: benchmarked 2026-03-13 via nimakai + tool-use latency test ---
+# Priority: newer releases, faster tool-use, higher SWE-bench
 
 [opencode.models.devstral-2-123b]
 provider = "nvidia"
@@ -16,6 +17,14 @@ name = "Devstral 2 123B (Daily Driver)"
 context_length = 262144
 max_output = 32768
 temperature = 0.6
+
+[opencode.models.step3-5-flash]
+provider = "nvidia"
+model_id = "stepfun-ai/step-3.5-flash"
+name = "Step 3.5 Flash"
+context_length = 262144
+max_output = 16384
+temperature = 1.0
 
 [opencode.models.glm5]
 provider = "nvidia"
@@ -27,21 +36,6 @@ temperature = 1.0
 top_p = 0.95
 thinking = true
 
-[opencode.models.step3-5-flash]
-provider = "nvidia"
-model_id = "stepfun-ai/step-3.5-flash"
-name = "Step 3.5 Flash"
-context_length = 262144
-max_output = 16384
-temperature = 1.0
-
-[opencode.models.minimax-m2-1]
-provider = "nvidia"
-model_id = "minimaxai/minimax-m2.1"
-name = "MiniMax M2.1"
-context_length = 131072
-max_output = 8192
-
 [opencode.models.glm4-7]
 provider = "nvidia"
 model_id = "z-ai/glm4.7"
@@ -52,10 +46,17 @@ temperature = 1.0
 top_p = 0.95
 thinking = true
 
-[opencode.models.kimi-k2-instruct]
+[opencode.models.gpt-oss-120b]
 provider = "nvidia"
-model_id = "moonshotai/kimi-k2-instruct"
-name = "Kimi K2 Instruct"
+model_id = "openai/gpt-oss-120b"
+name = "GPT OSS 120B"
+context_length = 131072
+max_output = 16384
+
+[opencode.models.kimi-k2-0905]
+provider = "nvidia"
+model_id = "moonshotai/kimi-k2-instruct-0905"
+name = "Kimi K2 Instruct 0905"
 context_length = 131072
 max_output = 16384
 
@@ -71,39 +72,30 @@ thinking = true
 provider = "nvidia"
 model_id = "qwen/qwen3.5-397b-a17b"
 name = "Qwen 3.5 397B VLM"
-context_length = 131072
-max_output = 16384
-thinking = true
-
-[opencode.models.gpt-oss-120b]
-provider = "nvidia"
-model_id = "openai/gpt-oss-120b"
-name = "GPT OSS 120B"
-context_length = 131072
-max_output = 16384
-
-[opencode.models.llama4-maverick]
-provider = "nvidia"
-model_id = "meta/llama-4-maverick-17b-128e-instruct"
-name = "Llama 4 Maverick"
-context_length = 131072
-max_output = 16384
-
-[opencode.models.qwen3-coder-480b]
-provider = "nvidia"
-model_id = "qwen/qwen3-coder-480b-a35b-instruct"
-name = "Qwen3 Coder 480B (Heavy)"
 context_length = 262144
-max_output = 32768
-temperature = 0.6
-
-[opencode.models.kimi-k2-thinking]
-provider = "nvidia"
-model_id = "moonshotai/kimi-k2-thinking"
-name = "Kimi K2 Thinking"
-context_length = 131072
 max_output = 16384
 thinking = true
+
+[opencode.models.nemotron-super-49b]
+provider = "nvidia"
+model_id = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+name = "Nemotron Super 49B"
+context_length = 131072
+max_output = 16384
+
+[opencode.models.mistral-large-3]
+provider = "nvidia"
+model_id = "mistralai/mistral-large-3-675b-instruct-2512"
+name = "Mistral Large 3 675B"
+context_length = 262144
+max_output = 16384
+
+[opencode.models.deepseek-v3-1-term]
+provider = "nvidia"
+model_id = "deepseek-ai/deepseek-v3.1-terminus"
+name = "DeepSeek V3.1 Terminus"
+context_length = 131072
+max_output = 16384
 
 [opencode.models.nemotron-3-super]
 provider = "nvidia"
@@ -114,6 +106,29 @@ max_output = 16384
 temperature = 1.0
 top_p = 0.95
 thinking = true
+
+[opencode.models.kimi-k2-thinking]
+provider = "nvidia"
+model_id = "moonshotai/kimi-k2-thinking"
+name = "Kimi K2 Thinking"
+context_length = 131072
+max_output = 16384
+thinking = true
+
+[opencode.models.qwen3-coder-480b]
+provider = "nvidia"
+model_id = "qwen/qwen3-coder-480b-a35b-instruct"
+name = "Qwen3 Coder 480B (Heavy)"
+context_length = 262144
+max_output = 32768
+temperature = 0.6
+
+[opencode.models.llama4-maverick]
+provider = "nvidia"
+model_id = "meta/llama-4-maverick-17b-128e-instruct"
+name = "Llama 4 Maverick"
+context_length = 131072
+max_output = 16384
 
 [opencode.default_model]
 model = "devstral-2-123b"
@@ -169,9 +184,11 @@ args = ["tavily-mcp"]
 env = { TAVILY_API_KEY = "$TAVILY_API_KEY" }
 
 # oh-my-opencode agent definitions
+# Assignments based on tool-use latency benchmarks + SWE-bench scores
 [oh_my_opencode]
 disabled_hooks = ["category-skill-reminder"]
 
+# Fast workers — low latency tool-use models
 [oh_my_opencode.agents.local]
 model = "devstral-2-123b"
 
@@ -181,37 +198,41 @@ temperature = 0.6
 top_p = 0.95
 max_tokens = 32768
 
-[oh_my_opencode.agents.hephaestus]
-model = "qwen3-coder-480b"
-
-[oh_my_opencode.agents.oracle]
-model = "glm5"
-
-[oh_my_opencode.agents.librarian]
-model = "glm4-7"
-
-[oh_my_opencode.agents.explore]
-model = "step3-5-flash"
-
-[oh_my_opencode.agents.multimodal-looker]
-model = "qwen3-5-397b"
-
-[oh_my_opencode.agents.prometheus]
-model = "kimi-k2-thinking"
-
-[oh_my_opencode.agents.metis]
-model = "gpt-oss-120b"
-
-[oh_my_opencode.agents.momus]
-model = "nemotron-3-super"
-
-[oh_my_opencode.agents.atlas]
-model = "qwen3-80b-thinking"
-
 [oh_my_opencode.agents.sisyphus-junior]
 model = "gpt-oss-120b"
 max_tokens = 32768
 
+[oh_my_opencode.agents.explore]
+model = "step3-5-flash"
+
+# Reasoning agents — thinking models
+[oh_my_opencode.agents.atlas]
+model = "qwen3-80b-thinking"
+
+[oh_my_opencode.agents.prometheus]
+model = "kimi-k2-thinking"
+
+[oh_my_opencode.agents.oracle]
+model = "glm5"
+
+# Specialist agents — high SWE-bench or domain-specific
+[oh_my_opencode.agents.hephaestus]
+model = "qwen3-coder-480b"
+
+[oh_my_opencode.agents.librarian]
+model = "glm4-7"
+
+[oh_my_opencode.agents.multimodal-looker]
+model = "qwen3-5-397b"
+
+# New: upgraded from broken/weak models to newer ones
+[oh_my_opencode.agents.momus]
+model = "nemotron-3-super"
+
+[oh_my_opencode.agents.metis]
+model = "kimi-k2-0905"
+
+# Categories
 [oh_my_opencode.categories.visual-engineering]
 model = "qwen3-5-397b"
 
@@ -228,48 +249,10 @@ model = "devstral-2-123b"
 model = "step3-5-flash"
 
 [oh_my_opencode.categories.unspecified-low]
-model = "llama4-maverick"
+model = "nemotron-super-49b"
 
 [oh_my_opencode.categories.unspecified-high]
-model = "devstral-2-123b"
+model = "mistral-large-3"
 
 [oh_my_opencode.categories.writing]
-model = "kimi-k2-instruct"
-
-[opencode.models.kimi-k2-0905]
-provider = "nvidia"
-model_id = "moonshotai/kimi-k2-instruct-0905"
-name = "Kimi K2 Instruct 0905"
-context_length = 131072
-max_output = 16384
-
-[opencode.models.nemotron-super-49b]
-provider = "nvidia"
-model_id = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
-name = "Nemotron Super 49B"
-context_length = 131072
-max_output = 16384
-
-[opencode.models.mistral-large-3]
-provider = "nvidia"
-model_id = "mistralai/mistral-large-3-675b-instruct-2512"
-name = "Mistral Large 3 675B"
-context_length = 262144
-max_output = 16384
-
-[opencode.models.deepseek-v3-1-term]
-provider = "nvidia"
-model_id = "deepseek-ai/deepseek-v3.1-terminus"
-name = "DeepSeek V3.1 Terminus"
-context_length = 131072
-max_output = 16384
-
-[opencode.models.nemotron-nano-12b-vl]
-provider = "nvidia"
-model_id = "nvidia/nemotron-nano-12b-v2-vl"
-name = "Nemotron Nano 12B VL"
-context_length = 131072
-max_output = 16384
-
-[oh_my_opencode.agents.bench]
 model = "kimi-k2-0905"
