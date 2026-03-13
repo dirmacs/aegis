@@ -84,12 +84,45 @@ Suggests optimal model→agent assignments based on latency and capability.
 | Very Slow | 3-10s | Avoid for agents |
 | Unstable | >10s | Do not use |
 
-**Key insight**: Ping latency does not predict agent task completion time. A model at 300ms ping might complete an agent task in 2s, while a 370ms model takes 20s. The difference is tool-use capability. Always test models with actual OMO agent tasks after triaging with nimakai.
+**Key insight**: Ping latency does not predict agent task completion time. A model at 300ms ping might complete an agent task in 2s, while a 370ms model takes 20s. The difference is tool-use capability.
+
+## Direct tool-use test
+
+After nimakai identifies responsive models, verify tool-use capability with a direct API call before adding to OMO:
+
+```bash
+curl -sS --max-time 20 "https://integrate.api.nvidia.com/v1/chat/completions" \
+  -H "Authorization: Bearer $NVIDIA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "MODEL_ID_HERE",
+    "messages": [{"role": "user", "content": "Read the file at /etc/hostname"}],
+    "tools": [{"type": "function", "function": {"name": "read_file",
+      "description": "Read file contents",
+      "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}}],
+    "max_tokens": 256, "stream": false
+  }'
+```
+
+If the response contains a `tool_calls` array, the model can do agent work. If it returns plain text, it cannot.
+
+## Known model quirks (2026-03-13)
+
+| Model | Issue |
+|-------|-------|
+| MiniMax M2 | 410 Gone — decommissioned from NIM |
+| MiniMax M2.1 | Pings OK but hangs on agent tool-use tasks |
+| Kimi K2.5 | Intermittent timeouts — NIM server-side |
+| Mistral Medium 3 | Fast ping (208ms) but cannot do tool-use — returns text |
+| Nemotron Super 49B | Tool-use works via curl but too slow for OMO timeouts |
+| Nemotron 3 Super | 1M context, agentic-optimized. Use `temperature=1.0, top_p=0.95` |
+| Qwen 3.5 VLM | Correct model ID is `qwen/qwen3.5-397b-a17b`, not `qwen3.5-400b` |
 
 ## Workflow: selecting models for aegis
 
 1. Run `./nimakai list` to identify responsive models
-2. Update `/opt/aegis/example/modules/ai-tools/opencode.toml` with responsive models
-3. Assign agents to models based on role (see [Agents & Categories](@/opencode/agents.md))
-4. Regenerate configs: `aegis opencode generate --input example/modules/ai-tools/opencode.toml`
-5. Test agents sequentially: `npx oh-my-opencode run --agent <name> --directory <dir> "<prompt>"`
+2. Run direct tool-use curl test (above) to verify agent capability
+3. Update `/opt/aegis/example/modules/ai-tools/opencode.toml` with verified models
+4. Regenerate: `aegis opencode generate --input example/modules/ai-tools/opencode.toml`
+5. Test agents: `npx oh-my-opencode run --port 6000 --agent <name> --directory <dir> "<prompt>"`
+6. Always use `--port 6000` or higher — default ports 4096-4100 get stuck from zombie servers
