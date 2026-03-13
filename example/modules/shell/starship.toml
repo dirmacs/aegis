@@ -1,0 +1,46 @@
+# Starship prompt — managed by aegis (dirmacs)
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$rust\
+$nim\
+$nodejs\
+$python\
+$cmd_duration\
+$line_break\
+$character"""
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+
+[rust]
+format = "[$symbol($version)]($style) "
+symbol = "🦀 "
+
+[nim]
+format = "[$symbol($version)]($style) "
+symbol = "👑 "
+
+[nodejs]
+format = "[$symbol($version)]($style) "
+
+[python]
+format = "[$symbol($version)]($style) "
+
+[cmd_duration]
+min_time = 2_000
+format = "[$duration]($style) "
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"

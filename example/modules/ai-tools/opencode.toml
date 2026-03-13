@@ -235,3 +235,41 @@ model = "devstral-2-123b"
 
 [oh_my_opencode.categories.writing]
 model = "kimi-k2-instruct"
+
+[opencode.models.kimi-k2-0905]
+provider = "nvidia"
+model_id = "moonshotai/kimi-k2-instruct-0905"
+name = "Kimi K2 Instruct 0905"
+context_length = 131072
+max_output = 16384
+
+[opencode.models.nemotron-super-49b]
+provider = "nvidia"
+model_id = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+name = "Nemotron Super 49B"
+context_length = 131072
+max_output = 16384
+
+[opencode.models.mistral-large-3]
+provider = "nvidia"
+model_id = "mistralai/mistral-large-3-675b-instruct-2512"
+name = "Mistral Large 3 675B"
+context_length = 262144
+max_output = 16384
+
+[opencode.models.deepseek-v3-1-term]
+provider = "nvidia"
+model_id = "deepseek-ai/deepseek-v3.1-terminus"
+name = "DeepSeek V3.1 Terminus"
+context_length = 131072
+max_output = 16384
+
+[opencode.models.nemotron-nano-12b-vl]
+provider = "nvidia"
+model_id = "nvidia/nemotron-nano-12b-v2-vl"
+name = "Nemotron Nano 12B VL"
+context_length = 131072
+max_output = 16384
+
+[oh_my_opencode.agents.bench]
+model = "kimi-k2-0905"

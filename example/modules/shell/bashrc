@@ -1,0 +1,57 @@
+# ~/.bashrc — managed by aegis (dirmacs)
+
+# Non-interactive bail
+[ -z "$PS1" ] && return
+
+# History
+HISTCONTROL=ignoredups:ignorespace
+shopt -s histappend
+HISTSIZE=10000
+HISTFILESIZE=20000
+
+# Window size
+shopt -s checkwinsize
+
+# Lesspipe
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# Color support
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+fi
+
+# Cargo
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+# Nim
+export PATH="$HOME/.nimble/bin:$PATH"
+
+# Bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Local bin
+export PATH="$HOME/.local/bin:$PATH"
+
+# Modern CLI aliases (bat, eza, fd, rg)
+command -v bat    >/dev/null && alias cat='bat --paging=never'
+command -v eza    >/dev/null && alias ls='eza --icons' && alias ll='eza -la --icons' && alias la='eza -a --icons' && alias lt='eza -T --icons --level=2'
+command -v fd     >/dev/null && alias find='fd'
+alias grep='grep --color=auto'
+
+# Zoxide (smart cd)
+command -v zoxide >/dev/null && eval "$(zoxide init bash)"
+
+# fzf
+[ -f /usr/share/doc/fzf/examples/key-bindings.bash ] && . /usr/share/doc/fzf/examples/key-bindings.bash
+export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
+command -v fd >/dev/null && export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+
+# Starship prompt
+command -v starship >/dev/null && eval "$(starship init bash)"
+
+# NVIDIA NIM
+[ -f "$HOME/.config/opencode/.env" ] && export $(grep -v '^#' "$HOME/.config/opencode/.env" | xargs)
+
+# Completions
+[ -f /etc/bash_completion ] && . /etc/bash_completion

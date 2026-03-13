@@ -1,0 +1,7 @@
+# bat configuration — managed by aegis (dirmacs)
+--theme="Dracula"
+--style="numbers,changes,header"
+--italic-text=always
+--map-syntax "*.toml:TOML"
+--map-syntax "*.nimble:TOML"
+--map-syntax "*.kdl:Kotlin"

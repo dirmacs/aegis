@@ -1,24 +1,29 @@
 [module]
 name = "dirmacs"
-description = "Dirmacs ecosystem toolchain (ares, daedra, thulp, eruka, lancor)"
+description = "Dirmacs ecosystem toolchain — local source builds from /opt"
 
-[[packages]]
-name = "ares-server"
-install_method = "cargo"
-cargo_crate = "ares-server"
-git_repo = "https://github.com/dirmacs/ares"
-version_check = "ares-server --version"
+# Packages installed via cargo from local source (cargo build --release in /opt/<name>)
+# Use `aegis toolchain status` to check health
 
 [[packages]]
 name = "daedra"
 install_method = "cargo"
 cargo_crate = "daedra"
-git_repo = "https://github.com/dirmacs/daedra"
 version_check = "daedra --version"
 
 [[packages]]
-name = "thulp"
-install_method = "cargo"
-cargo_crate = "thulp"
-git_repo = "https://github.com/dirmacs/thulp"
-version_check = "thulp --version"
+name = "nimakai"
+install_method = "script"
+version_check = "/opt/nimakai/nimakai --version"
+
+[[hooks]]
+event = "post-bootstrap"
+command = """
+echo 'Symlinking dirmacs binaries from /opt...'
+for bin in /opt/ares/target/release/ares-server /opt/daedra/target/release/daedra /opt/thulp/target/release/thulp /opt/nimakai/nimakai; do
+  name=$(basename $bin)
+  if [ -f "$bin" ]; then
+    ln -sf "$bin" "$HOME/.local/bin/$name" 2>/dev/null && echo "  linked $name" || true
+  fi
+done
+"""
