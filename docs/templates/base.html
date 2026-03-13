@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.title }}{% endblock %}</title>
+  <meta name="description" content="{{ config.description }}">
+  <link rel="stylesheet" href="{{ get_url(path='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="{{ config.base_url }}" class="logo"><img src="{{ get_url(path='img/aegis-logo.svg') }}" alt="" width="24" height="24"> Aegis</a>
+      <div class="tagline">dirmacs system config manager</div>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Search docs..." aria-label="Search">
+    </div>
+
+    <nav>
+      {% set index = get_section(path="_index.md") %}
+
+      <div class="nav-section">
+        <a href="{{ get_url(path='@/_index.md') }}" {% if current_path == "/" %}class="active"{% endif %}>Introduction</a>
+      </div>
+
+      {% set gs = get_section(path="getting-started/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        {% for page in gs.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+
+      {% set cli = get_section(path="cli-reference/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">CLI Reference</div>
+        {% for page in cli.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+
+      {% set cfg = get_section(path="configuration/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">Configuration</div>
+        {% for page in cfg.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+
+      {% set oc = get_section(path="opencode/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">OpenCode</div>
+        {% for page in oc.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+
+      {% set tc = get_section(path="toolchain/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">Toolchain</div>
+        {% for page in tc.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+
+      {% set guides = get_section(path="guides/_index.md") %}
+      <div class="nav-section">
+        <div class="nav-section-title">Guides</div>
+        {% for page in guides.pages %}
+        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
+        {% endfor %}
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="content">
+      {% block content %}{% endblock %}
+
+      <div class="footer">
+        <a href="{{ config.extra.repo_url }}">GitHub</a> &middot;
+        Built with <a href="https://www.getzola.org">Zola</a> &middot;
+        &copy; 2026 <a href="https://github.com/dirmacs">Dirmacs</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
