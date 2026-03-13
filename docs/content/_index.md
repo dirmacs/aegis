@@ -41,7 +41,7 @@ Think of it as a modern, Rust-native alternative to shell-script-based dotfile m
 | [Configuration](configuration/manifest/) | aegis.toml, module.toml, variables, profiles |
 | [OpenCode](opencode/overview/) | TOML-to-JSON pipeline for opencode configs |
 | [Toolchain](toolchain/overview/) | Managing the dirmacs ecosystem |
-| [Guides](guides/from-battlestation/) | Migrating from battlestation, setting up a new machine |
+| [Guides](guides/nimakai/) | Model triage with nimakai, setting up a new machine |
 
 ---
 
