@@ -1,5 +1,6 @@
 use anyhow::Result;
 use console::Style;
+use serde::Serialize;
 
 use aegis_core::config::{ConfigStatus, check_config};
 use aegis_core::variables::check_env_vars;
@@ -16,9 +17,64 @@ pub struct StatusArgs {
     pub module: Option<String>,
 }
 
+#[derive(Serialize)]
+struct StatusOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<ProfileStatus>,
+    env_vars: Vec<EnvVarStatus>,
+    modules: Vec<ModuleStatus>,
+    toolchain: Vec<ToolStatus>,
+}
+
+#[derive(Serialize)]
+struct ProfileStatus {
+    name: String,
+    description: String,
+}
+
+#[derive(Serialize)]
+struct EnvVarStatus {
+    key: String,
+    env_var: String,
+    set: bool,
+}
+
+#[derive(Serialize)]
+struct ModuleStatus {
+    name: String,
+    packages: Vec<PackageStatus>,
+    configs: Vec<ConfigStatusEntry>,
+}
+
+#[derive(Serialize)]
+struct PackageStatus {
+    name: String,
+    installed: bool,
+    version: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ConfigStatusEntry {
+    source: String,
+    target: String,
+    status: String,
+    detail: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ToolStatus {
+    name: String,
+    installed: bool,
+    version: Option<String>,
+}
+
 pub async fn run(args: StatusArgs, ctx: &Context) -> Result<()> {
     let (manifest, manifest_dir) = ctx.load_manifest()?;
     let modules = ctx.load_modules(&manifest, &manifest_dir, args.module.as_deref())?;
+
+    if args.json {
+        return run_json(&manifest, &modules, ctx);
+    }
 
     let green = Style::new().green();
     let red = Style::new().red();
@@ -104,5 +160,89 @@ pub async fn run(args: StatusArgs, ctx: &Context) -> Result<()> {
         println!("  {icon} {} — {version}", tool.name);
     }
 
+    Ok(())
+}
+
+fn run_json(
+    manifest: &aegis_core::manifest::Manifest,
+    modules: &[aegis_core::module::Module],
+    ctx: &Context,
+) -> Result<()> {
+    let profile_status = manifest
+        .active_profile(ctx.profile.as_deref())
+        .map(|(name, profile)| ProfileStatus {
+            name: name.to_string(),
+            description: profile.description.clone().unwrap_or_default(),
+        });
+
+    let env_statuses = check_env_vars(&manifest.variables);
+    let env_vars: Vec<EnvVarStatus> = env_statuses
+        .iter()
+        .map(|s| EnvVarStatus {
+            key: s.variable_key.clone(),
+            env_var: s.env_var.clone(),
+            set: s.set,
+        })
+        .collect();
+
+    let mut module_statuses = Vec::new();
+    for module in modules {
+        let mut packages = Vec::new();
+        for pkg in &module.manifest.packages {
+            let status = pkg.check_status();
+            packages.push(PackageStatus {
+                name: pkg.name.clone(),
+                installed: status.installed,
+                version: status.version,
+            });
+        }
+
+        let mut configs = Vec::new();
+        for cfg in &module.manifest.configs {
+            let source = module.config_source_path(cfg);
+            let target = module.config_target_path(cfg)?;
+            let strategy = module.effective_strategy(cfg, manifest.aegis.strategy);
+            let status = check_config(&source, &target, strategy);
+
+            let (status_str, detail) = match status {
+                ConfigStatus::Ok => ("ok".to_string(), None),
+                ConfigStatus::Missing => ("missing".to_string(), None),
+                ConfigStatus::Drifted(msg) => ("drifted".to_string(), Some(msg)),
+                ConfigStatus::Error(msg) => ("error".to_string(), Some(msg)),
+            };
+
+            configs.push(ConfigStatusEntry {
+                source: cfg.source.clone(),
+                target: cfg.target.clone(),
+                status: status_str,
+                detail,
+            });
+        }
+
+        module_statuses.push(ModuleStatus {
+            name: module.name.clone(),
+            packages,
+            configs,
+        });
+    }
+
+    let health = aegis_toolchain::health::check_all();
+    let toolchain: Vec<ToolStatus> = health
+        .iter()
+        .map(|t| ToolStatus {
+            name: t.name.clone(),
+            installed: t.installed,
+            version: t.version.clone(),
+        })
+        .collect();
+
+    let output = StatusOutput {
+        profile: profile_status,
+        env_vars,
+        modules: module_statuses,
+        toolchain,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&output)?);
     Ok(())
 }

@@ -20,6 +20,7 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
 
     let bold = Style::new().bold();
     let green = Style::new().green().bold();
+    let red = Style::new().red().bold();
 
     let profile_name = manifest
         .active_profile(ctx.profile.as_deref())
@@ -33,6 +34,10 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
     );
     println!();
 
+    let mut pkg_ok = 0usize;
+    let mut pkg_fail = 0usize;
+    let mut config_ok = false;
+
     // Phase 1: Install packages
     if !args.skip_packages {
         println!("{}", bold.apply_to("Phase 1: Packages"));
@@ -41,7 +46,7 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("  [{bar:30}] {pos}/{len} {msg}")
-                .unwrap()
+                .expect("valid progress template")
                 .progress_chars("=> "),
         );
 
@@ -52,13 +57,29 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
                 if !status.installed {
                     if let Err(e) = pkg.install(ctx.dry_run) {
                         pb.println(format!("  ✗ {} — {e}", pkg.name));
+                        pkg_fail += 1;
+                    } else {
+                        pkg_ok += 1;
                     }
+                } else {
+                    pkg_ok += 1;
                 }
                 pb.inc(1);
             }
         }
         pb.finish_and_clear();
-        println!("  {green} {total_packages} package(s) checked", green = green.apply_to("✓"));
+
+        if pkg_fail > 0 {
+            println!(
+                "  {} {pkg_ok} ok, {pkg_fail} failed",
+                red.apply_to("!")
+            );
+        } else {
+            println!(
+                "  {} {pkg_ok} package(s) checked",
+                green.apply_to("✓")
+            );
+        }
         println!();
     }
 
@@ -66,8 +87,15 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
     if !args.skip_configs {
         println!("{}", bold.apply_to("Phase 2: Configs"));
         let link_args = super::link::LinkArgs { module: None };
-        super::link::run_link(link_args, ctx).await?;
+        match super::link::run_link(link_args, ctx).await {
+            Ok(()) => config_ok = true,
+            Err(e) => {
+                println!("  {} Config deployment failed: {e}", red.apply_to("✗"));
+            }
+        }
         println!();
+    } else {
+        config_ok = true;
     }
 
     // Phase 3: Verify
@@ -78,8 +106,19 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
     };
     super::status::run(status_args, ctx).await?;
 
+    // Summary
     println!();
-    println!("{} Bootstrap complete", green.apply_to("✓"));
+    if pkg_fail == 0 && config_ok {
+        println!("{} Bootstrap complete", green.apply_to("✓"));
+    } else {
+        println!("{} Bootstrap finished with issues:", red.apply_to("!"));
+        if pkg_fail > 0 {
+            println!("  - {pkg_fail} package(s) failed to install");
+        }
+        if !config_ok {
+            println!("  - Config deployment had errors");
+        }
+    }
 
     Ok(())
 }

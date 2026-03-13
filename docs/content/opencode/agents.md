@@ -13,19 +13,16 @@ Agents reference models by their key in `[opencode.models.*]`:
 
 ```toml
 [oh_my_opencode.agents.sisyphus]
-model = "qwen3-5-122b"
+model = "devstral-2-123b"
 temperature = 0.6
 top_p = 0.95
 max_tokens = 32768
 
 [oh_my_opencode.agents.oracle]
-model = "qwen3-5-397b"
-
-[oh_my_opencode.agents.librarian]
-model = "glm4-7"
+model = "glm5"
 
 [oh_my_opencode.agents.explore]
-model = "minimax-m2-1"
+model = "step3-5-flash"
 ```
 
 | Field | Type | Required | Description |
@@ -35,19 +32,36 @@ model = "minimax-m2-1"
 | `top_p` | float | — | Override top_p |
 | `max_tokens` | integer | — | Maximum output tokens |
 
+## Agent roster
+
+| Agent | Role | Recommended model type |
+|-------|------|----------------------|
+| sisyphus | Primary coder | Fast coding model |
+| sisyphus-junior | Secondary worker | Fast general model |
+| hephaestus | Heavy engineering | Best coding model (slow OK) |
+| oracle | Deep analysis | Thinking model |
+| explore | Codebase search | Fastest available |
+| librarian | Documentation | Medium model |
+| prometheus | Plan builder | Thinking model |
+| atlas | Plan executor | Thinking model |
+| metis | Plan consultant | Fast general model |
+| momus | Plan critic | Fast instruct model |
+| multimodal-looker | Visual tasks | VL (vision-language) model |
+| local | Default fallback | Fast coding model |
+
 ## Defining categories
 
 Categories map task types to models:
 
 ```toml
 [oh_my_opencode.categories.deep]
-model = "qwen3-5-397b"
+model = "glm5"
 
 [oh_my_opencode.categories.quick]
-model = "minimax-m2-1"
+model = "step3-5-flash"
 
 [oh_my_opencode.categories.writing]
-model = "qwen3-5-122b"
+model = "kimi-k2-instruct"
 ```
 
 ## Disabling hooks
@@ -55,6 +69,25 @@ model = "qwen3-5-122b"
 ```toml
 [oh_my_opencode]
 disabled_hooks = ["category-skill-reminder"]
+```
+
+## Running agents
+
+Agents are run via `npx oh-my-opencode run`. They must be run **sequentially** — concurrent runs cause port collisions.
+
+```bash
+export NVIDIA_API_KEY=$(grep NVIDIA_API_KEY ~/.config/opencode/.env | cut -d= -f2)
+
+npx oh-my-opencode run \
+  --agent sisyphus \
+  --directory /opt/aegis \
+  "Add a --version flag to the CLI"
+```
+
+Clean up stale servers between runs:
+
+```bash
+pkill -9 -f "opencode serve" 2>/dev/null; sleep 2
 ```
 
 ## Generated output
@@ -67,14 +100,14 @@ Model keys are resolved to full `provider/model_id` format:
   "disabled_hooks": ["category-skill-reminder"],
   "agents": {
     "sisyphus": {
-      "model": "nvidia/qwen/qwen3.5-122b-a10b",
+      "model": "nvidia/mistralai/devstral-2-123b-instruct-2512",
       "temperature": 0.6,
       "max_tokens": 32768
     }
   },
   "categories": {
     "deep": {
-      "model": "nvidia/qwen/qwen3.5-397b-a17b"
+      "model": "nvidia/z-ai/glm5"
     }
   }
 }

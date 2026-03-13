@@ -165,4 +165,73 @@ path = "modules/terminal"
         assert_eq!(manifest.profiles.len(), 2);
         assert_eq!(manifest.variables.len(), 2);
     }
+
+    #[test]
+    fn active_profile_override() {
+        let toml_str = r#"
+[aegis]
+version = "0.1.0"
+default_profile = "dev-vps"
+
+[profiles.dev-vps]
+description = "Development VPS"
+modules = ["shell"]
+
+[profiles.ci]
+description = "CI"
+modules = []
+"#;
+        let manifest: Manifest = toml::from_str(toml_str).unwrap();
+
+        // Default profile
+        let (name, _) = manifest.active_profile(None).unwrap();
+        assert_eq!(name, "dev-vps");
+
+        // Override
+        let (name, profile) = manifest.active_profile(Some("ci")).unwrap();
+        assert_eq!(name, "ci");
+        assert_eq!(profile.description.as_deref(), Some("CI"));
+
+        // Unknown override returns None
+        assert!(manifest.active_profile(Some("nonexistent")).is_none());
+    }
+
+    #[test]
+    fn default_strategy_is_symlink() {
+        let toml_str = r#"
+[aegis]
+version = "0.1.0"
+"#;
+        let manifest: Manifest = toml::from_str(toml_str).unwrap();
+        assert_eq!(manifest.aegis.strategy, LinkStrategy::Symlink);
+    }
+
+    #[test]
+    fn copy_strategy() {
+        let toml_str = r#"
+[aegis]
+version = "0.1.0"
+strategy = "copy"
+"#;
+        let manifest: Manifest = toml::from_str(toml_str).unwrap();
+        assert_eq!(manifest.aegis.strategy, LinkStrategy::Copy);
+    }
+
+    #[test]
+    fn roundtrip_serialize() {
+        let toml_str = r#"
+[aegis]
+version = "0.1.0"
+strategy = "symlink"
+
+[[modules]]
+name = "shell"
+path = "modules/shell"
+"#;
+        let manifest: Manifest = toml::from_str(toml_str).unwrap();
+        let serialized = toml::to_string_pretty(&manifest).unwrap();
+        let reparsed: Manifest = toml::from_str(&serialized).unwrap();
+        assert_eq!(manifest.aegis.version, reparsed.aegis.version);
+        assert_eq!(manifest.modules.len(), reparsed.modules.len());
+    }
 }

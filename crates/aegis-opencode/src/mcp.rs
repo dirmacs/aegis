@@ -74,6 +74,7 @@ pub struct McpRemoteJson {
 
 impl McpInput {
     /// Convert to opencode.json format.
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_json(&self) -> McpJson {
         match self.mcp_type {
             McpType::Remote => McpJson::Remote(McpRemoteJson {
@@ -103,6 +104,80 @@ impl McpInput {
                     timeout: self.timeout,
                 })
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stdio_mcp_to_json() {
+        let input = McpInput {
+            mcp_type: McpType::Stdio,
+            command: Some("daedra".to_string()),
+            args: vec!["serve".to_string(), "--quiet".to_string()],
+            url: None,
+            env: HashMap::new(),
+            enabled: true,
+            timeout: None,
+        };
+
+        match input.to_json() {
+            McpJson::Local(local) => {
+                assert_eq!(local.mcp_type, "local");
+                assert_eq!(local.command, vec!["daedra", "serve", "--quiet"]);
+                assert!(local.environment.is_none());
+                assert!(local.enabled);
+            }
+            McpJson::Remote(_) => panic!("expected Local"),
+        }
+    }
+
+    #[test]
+    fn remote_mcp_to_json() {
+        let input = McpInput {
+            mcp_type: McpType::Remote,
+            command: None,
+            args: vec![],
+            url: Some("https://mcp.context7.com/mcp".to_string()),
+            env: HashMap::new(),
+            enabled: true,
+            timeout: Some(30),
+        };
+
+        match input.to_json() {
+            McpJson::Remote(remote) => {
+                assert_eq!(remote.mcp_type, "remote");
+                assert_eq!(remote.url, "https://mcp.context7.com/mcp");
+                assert_eq!(remote.timeout, Some(30));
+            }
+            McpJson::Local(_) => panic!("expected Remote"),
+        }
+    }
+
+    #[test]
+    fn stdio_mcp_with_env() {
+        let mut env = HashMap::new();
+        env.insert("API_KEY".to_string(), "$API_KEY".to_string());
+
+        let input = McpInput {
+            mcp_type: McpType::Stdio,
+            command: Some("bunx".to_string()),
+            args: vec!["tavily-mcp".to_string()],
+            url: None,
+            env,
+            enabled: true,
+            timeout: None,
+        };
+
+        match input.to_json() {
+            McpJson::Local(local) => {
+                let env = local.environment.unwrap();
+                assert_eq!(env.get("API_KEY").unwrap(), "$API_KEY");
+            }
+            McpJson::Remote(_) => panic!("expected Local"),
         }
     }
 }

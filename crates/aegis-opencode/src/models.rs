@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 /// Provider definition in aegis TOML.
@@ -57,6 +58,33 @@ pub struct ModelInput {
     /// Disable clear thinking.
     #[serde(default)]
     pub clear_thinking_disabled: Option<bool>,
+}
+
+impl ModelInput {
+    /// Validate numeric parameter ranges.
+    pub fn validate(&self, key: &str) -> Result<()> {
+        if let Some(ctx) = self.context_length {
+            if ctx == 0 {
+                bail!("model '{key}': context_length must be > 0");
+            }
+        }
+        if let Some(out) = self.max_output {
+            if out == 0 {
+                bail!("model '{key}': max_output must be > 0");
+            }
+        }
+        if let Some(temp) = self.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                bail!("model '{key}': temperature must be in [0.0, 2.0], got {temp}");
+            }
+        }
+        if let Some(p) = self.top_p {
+            if !(0.0..=1.0).contains(&p) {
+                bail!("model '{key}': top_p must be in [0.0, 1.0], got {p}");
+            }
+        }
+        Ok(())
+    }
 }
 
 // --- Output types that serialize to opencode.json format ---

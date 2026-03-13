@@ -110,9 +110,12 @@ pub async fn run_unlink(args: UnlinkArgs, ctx: &Context) -> Result<()> {
     for module in &modules {
         for hook in module.hooks_for(HookEvent::PreUnlink) {
             if !ctx.dry_run {
-                let _ = std::process::Command::new("sh")
+                let status = std::process::Command::new("sh")
                     .args(["-c", &hook.command])
-                    .status();
+                    .status()?;
+                if !status.success() {
+                    tracing::warn!("pre-unlink hook failed: {}", hook.command);
+                }
             }
         }
 
@@ -124,9 +127,12 @@ pub async fn run_unlink(args: UnlinkArgs, ctx: &Context) -> Result<()> {
 
         for hook in module.hooks_for(HookEvent::PostUnlink) {
             if !ctx.dry_run {
-                let _ = std::process::Command::new("sh")
+                let status = std::process::Command::new("sh")
                     .args(["-c", &hook.command])
-                    .status();
+                    .status()?;
+                if !status.success() {
+                    tracing::warn!("post-unlink hook failed: {}", hook.command);
+                }
             }
         }
     }

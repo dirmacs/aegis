@@ -13,6 +13,7 @@ pub fn render_file(
     let content = std::fs::read_to_string(source)
         .with_context(|| format!("reading template {}", source.display()))?;
     render_string(&content, variables)
+        .with_context(|| format!("rendering template {}", source.display()))
 }
 
 /// Render a template string with the given variables.

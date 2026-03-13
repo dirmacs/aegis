@@ -23,3 +23,31 @@ impl Default for Styles {
         }
     }
 }
+
+#[allow(dead_code)]
+impl Styles {
+    /// Print a success message with green checkmark prefix.
+    pub fn print_success(&self, msg: &str) {
+        println!("{} {msg}", self.success.apply_to("✓"));
+    }
+
+    /// Print an error message with red X prefix.
+    pub fn print_error(&self, msg: &str) {
+        println!("{} {msg}", self.error.apply_to("✗"));
+    }
+
+    /// Print a warning message with yellow ! prefix.
+    pub fn print_warning(&self, msg: &str) {
+        println!("{} {msg}", self.warning.apply_to("!"));
+    }
+
+    /// Print an info message with cyan ▸ prefix.
+    pub fn print_info(&self, msg: &str) {
+        println!("{} {msg}", self.info.apply_to("▸"));
+    }
+
+    /// Print a section header in bold.
+    pub fn print_header(&self, msg: &str) {
+        println!("{}", self.bold.apply_to(msg));
+    }
+}
