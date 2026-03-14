@@ -230,7 +230,7 @@ model = "qwen3-5-397b"
 model = "nemotron-3-super"
 
 [oh_my_opencode.agents.metis]
-model = "kimi-k2-0905"
+model = "gpt-oss-120b"
 
 # Categories
 [oh_my_opencode.categories.visual-engineering]
@@ -249,7 +249,7 @@ model = "devstral-2-123b"
 model = "step3-5-flash"
 
 [oh_my_opencode.categories.unspecified-low]
-model = "nemotron-super-49b"
+model = "llama4-maverick"
 
 [oh_my_opencode.categories.unspecified-high]
 model = "mistral-large-3"
