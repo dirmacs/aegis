@@ -8,10 +8,17 @@ strategy = "symlink"
 hostname = { source = "command", value = "hostname" }
 user = { source = "env", value = "USER" }
 nvidia_api_key = { source = "env", value = "NVIDIA_API_KEY" }
+dolta_api_key = { source = "env", value = "DOLTA_API_KEY" }
+
+# VPS service topology
+channel_gateway_url = { source = "static", value = "http://localhost:9000" }
+channel_gateway_port = { source = "static", value = "9000" }
+channel_gateway_secret = { source = "env", value = "CHANNEL_GATEWAY_SECRET" }
+channel_default_whatsapp_to = { source = "env", value = "CHANNEL_DEFAULT_WHATSAPP_TO" }
 
 [profiles.dev-vps]
 description = "Development VPS with full tooling"
-modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs"]
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs", "vps-services"]
 variables = { gpu_available = "false" }
 
 [profiles.workstation]
@@ -42,3 +49,7 @@ path = "modules/dev-tools"
 [[modules]]
 name = "dirmacs"
 path = "modules/dirmacs"
+
+[[modules]]
+name = "vps-services"
+path = "modules/vps-services"
