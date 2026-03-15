@@ -2,28 +2,71 @@
 name = "dirmacs"
 description = "Dirmacs ecosystem toolchain — local source builds from /opt"
 
-# Packages installed via cargo from local source (cargo build --release in /opt/<name>)
-# Use `aegis toolchain status` to check health
+# Core platform services
+[[packages]]
+name = "ares"
+install_method = "script"
+version_check = "/opt/ares/target/release/ares-server --version"
 
+[[packages]]
+name = "eruka"
+install_method = "script"
+version_check = "/opt/eruka/target/release/eruka-api --version"
+
+[[packages]]
+name = "doltares"
+install_method = "script"
+version_check = "curl -sf http://localhost:3100/health | grep -q ok"
+
+# Agent runtimes
+[[packages]]
+name = "pawan"
+install_method = "cargo"
+cargo_crate = "pawan-cli"
+version_check = "/opt/pawan/target/release/pawan --version"
+
+[[packages]]
+name = "doltclaw"
+install_method = "script"
+version_check = "/opt/doltclaw/target/release/doltclaw --version"
+
+# Notification gateway
+[[packages]]
+name = "channel-gateway"
+install_method = "script"
+version_check = "curl -sf http://localhost:9000/health | grep -q ok"
+
+# Benchmarker
+[[packages]]
+name = "nimakai"
+install_method = "script"
+version_check = "/opt/nimakai/nimakai --version"
+
+# MCP server
 [[packages]]
 name = "daedra"
 install_method = "cargo"
 cargo_crate = "daedra"
 version_check = "daedra --version"
 
-[[packages]]
-name = "nimakai"
-install_method = "script"
-version_check = "/opt/nimakai/nimakai --version"
-
 [[hooks]]
 event = "post-bootstrap"
 command = """
 echo 'Symlinking dirmacs binaries from /opt...'
-for bin in /opt/ares/target/release/ares-server /opt/daedra/target/release/daedra /opt/thulp/target/release/thulp /opt/nimakai/nimakai; do
-  name=$(basename $bin)
+for entry in \
+  "/opt/ares/target/release/ares-server:ares-server" \
+  "/opt/eruka/target/release/eruka-api:eruka-api" \
+  "/opt/pawan/target/release/pawan:pawan" \
+  "/opt/doltclaw/target/release/doltclaw:doltclaw" \
+  "/opt/channel-gateway/channel-gateway:channel-gateway" \
+  "/opt/nimakai/nimakai:nimakai" \
+  "/opt/daedra/target/release/daedra:daedra"; do
+  bin="${entry%%:*}"
+  name="${entry##*:}"
   if [ -f "$bin" ]; then
     ln -sf "$bin" "$HOME/.local/bin/$name" 2>/dev/null && echo "  linked $name" || true
+  else
+    echo "  skipped $name (not built)"
   fi
 done
 """
