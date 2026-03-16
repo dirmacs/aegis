@@ -6,3 +6,7 @@ target/
 .vscode/
 .DS_Store
 docs/public/
+
+# Environment files
+.env
+.env.*
