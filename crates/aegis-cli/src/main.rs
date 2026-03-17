@@ -57,6 +57,8 @@ enum Commands {
     Opencode(commands::opencode::OpencodeArgs),
     /// Manage the dirmacs toolchain (ares, daedra, thulp, eruka, lancor)
     Toolchain(commands::toolchain::ToolchainArgs),
+    /// Overlay network management (CA, peers, WireGuard configs)
+    Net(commands::net::NetArgs),
     /// List and inspect profiles
     Profile(commands::profile::ProfileArgs),
 }
@@ -98,6 +100,7 @@ async fn main() -> Result<()> {
         Commands::Unlink(args) => commands::link::run_unlink(args, &ctx).await,
         Commands::Opencode(args) => commands::opencode::run(args, &ctx).await,
         Commands::Toolchain(args) => commands::toolchain::run(args, &ctx).await,
+        Commands::Net(args) => commands::net::run(args, &ctx).await,
         Commands::Profile(args) => commands::profile::run(args, &ctx).await,
     }
 }

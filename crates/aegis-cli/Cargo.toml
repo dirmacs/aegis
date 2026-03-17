@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 aegis-core = { workspace = true }
+aegis-net = { workspace = true }
 aegis-opencode = { workspace = true }
 aegis-toolchain = { workspace = true }
 serde = { workspace = true }
@@ -30,3 +31,5 @@ dialoguer = { workspace = true }
 similar = { workspace = true }
 dirs = { workspace = true }
 shellexpand = { workspace = true }
+base64 = "0.22"
+ipnet = { version = "2", features = ["serde"] }
