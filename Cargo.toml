@@ -13,6 +13,7 @@ repository = "https://github.com/dirmacs/aegis"
 [workspace.dependencies]
 # Internal crates
 aegis-core = { path = "crates/aegis-core" }
+aegis-net = { path = "crates/aegis-net" }
 aegis-opencode = { path = "crates/aegis-opencode" }
 aegis-toolchain = { path = "crates/aegis-toolchain" }
 

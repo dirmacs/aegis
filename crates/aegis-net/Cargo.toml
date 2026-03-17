@@ -1,0 +1,33 @@
+[package]
+name = "aegis-net"
+description = "DIRMACS overlay network — WireGuard mesh with declarative TOML config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Crypto for CA and key generation
+ed25519-dalek = { version = "2", features = ["rand_core", "pem"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+ipnet = { version = "2", features = ["serde"] }
+sha2 = { workspace = true }
+
+# System
+which = { workspace = true }
+hex = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
