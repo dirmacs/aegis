@@ -1,0 +1,54 @@
+[network]
+name = "dirmacs-mesh"
+cidr = "10.42.0.0/24"
+config_dir = "/etc/aegis-net"
+listen_port = 51820
+mtu = 1300
+interface = "aegis0"
+
+[peers.baala-laptop]
+ip = "10.42.0.2"
+groups = [
+    "admin",
+    "dev",
+]
+lighthouse = false
+cert_duration = "365d"
+
+[peers.vps]
+ip = "10.42.0.1"
+groups = ["servers"]
+endpoint = "217.216.78.38:51820"
+lighthouse = true
+cert_duration = "365d"
+
+[peers.shanjeth-mac]
+ip = "10.42.0.3"
+groups = [
+    "admin",
+    "dev",
+]
+lighthouse = false
+cert_duration = "365d"
+
+[firewall]
+default_action = "deny"
+
+# Admin group gets full access to everything
+[[firewall.inbound]]
+port = "any"
+groups = ["admin"]
+action = "allow"
+
+# Servers can talk to each other on service ports
+[[firewall.inbound]]
+port = "3000-9000"
+proto = "tcp"
+groups = ["servers"]
+action = "allow"
+
+# Allow all outbound from mesh
+[[firewall.outbound]]
+port = "any"
+groups = ["admin", "servers"]
+action = "allow"
