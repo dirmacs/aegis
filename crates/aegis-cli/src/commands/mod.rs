@@ -6,6 +6,7 @@ pub mod link;
 pub mod net;
 pub mod opencode;
 pub mod profile;
+pub mod secrets;
 pub mod status;
 pub mod sync;
 pub mod toolchain;
