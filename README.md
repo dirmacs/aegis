@@ -28,6 +28,32 @@ Aegis is a Rust CLI tool that manages system configurations from declarative TOM
 - **Profiles** — different module sets and variables per machine type
 - **Drift detection** — diff and status commands show what's changed
 
+## Encrypted Secrets
+
+Aegis includes an encrypted vault for storing passwords, API keys, tokens, and other sensitive data.
+
+### Commands
+
+- `aegis secrets set <key> [value]` - Store a secret (prompts for value if omitted)
+- `aegis secrets get <key>` - Retrieve a secret
+- `aegis secrets list` - List all secret keys (not values)
+- `aegis secrets rm <key>` - Delete a secret
+- `aegis secrets export <key> [--env-name NAME]` - Output as `NAME=value` for shell sourcing
+
+Example:
+```bash
+aegis secrets set github_token
+aegis secrets export github_token --env-name GITHUB_TOKEN > .env
+```
+
+### Security
+
+- **Encryption**: AES-256-GCM (authenticated)
+- **Key derivation**: Argon2id (memory-hard, resistant to brute-force)
+- **Storage**: Local-only at `~/.config/aegis/vault.toml`
+- The vault is never committed to git and is deliberately excluded from the repository.
+
+Because Aegis is an open-source public repository, the vault remains strictly on your local machine.
 ## Quick Start
 
 ```bash
