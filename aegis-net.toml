@@ -31,6 +31,15 @@ groups = [
 lighthouse = false
 cert_duration = "365d"
 
+[peers.baala-phone]
+ip = "10.42.0.4"
+groups = [
+    "admin",
+    "dev",
+]
+lighthouse = false
+cert_duration = "365d"
+
 [firewall]
 default_action = "deny"
 
