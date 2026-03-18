@@ -1,5 +1,6 @@
 pub mod config;
 pub mod diff;
+pub mod inventory;
 pub mod manifest;
 pub mod module;
 pub mod package;

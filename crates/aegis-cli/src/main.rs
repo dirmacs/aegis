@@ -59,6 +59,8 @@ enum Commands {
     Toolchain(commands::toolchain::ToolchainArgs),
     /// Overlay network management (CA, peers, WireGuard configs)
     Net(commands::net::NetArgs),
+    /// Node inventory — discover, sync, and diff environments across the mesh
+    Inventory(commands::inventory::InventoryArgs),
     /// List and inspect profiles
     Profile(commands::profile::ProfileArgs),
 }
@@ -101,6 +103,7 @@ async fn main() -> Result<()> {
         Commands::Opencode(args) => commands::opencode::run(args, &ctx).await,
         Commands::Toolchain(args) => commands::toolchain::run(args, &ctx).await,
         Commands::Net(args) => commands::net::run(args, &ctx).await,
+        Commands::Inventory(args) => commands::inventory::run(args, &ctx).await,
         Commands::Profile(args) => commands::profile::run(args, &ctx).await,
     }
 }
