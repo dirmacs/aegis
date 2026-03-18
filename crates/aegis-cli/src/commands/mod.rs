@@ -1,6 +1,7 @@
 pub mod bootstrap;
 pub mod diff;
 pub mod init;
+pub mod inventory;
 pub mod link;
 pub mod net;
 pub mod opencode;
