@@ -63,6 +63,8 @@ enum Commands {
     Inventory(commands::inventory::InventoryArgs),
     /// List and inspect profiles
     Profile(commands::profile::ProfileArgs),
+    /// Encrypted secrets vault (passwords, API keys, tokens)
+    Secrets(commands::secrets::SecretsArgs),
 }
 
 #[tokio::main]
@@ -105,5 +107,6 @@ async fn main() -> Result<()> {
         Commands::Net(args) => commands::net::run(args, &ctx).await,
         Commands::Inventory(args) => commands::inventory::run(args, &ctx).await,
         Commands::Profile(args) => commands::profile::run(args, &ctx).await,
+        Commands::Secrets(args) => commands::secrets::run(args, &ctx).await,
     }
 }
