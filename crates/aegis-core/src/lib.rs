@@ -6,6 +6,7 @@ pub mod manifest;
 pub mod module;
 pub mod package;
 pub mod profile;
+pub mod resolver;
 pub mod ssh;
 pub mod template;
 pub mod variables;
