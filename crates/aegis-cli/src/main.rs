@@ -65,6 +65,12 @@ enum Commands {
     Profile(commands::profile::ProfileArgs),
     /// Encrypted secrets vault (passwords, API keys, tokens)
     Secrets(commands::secrets::SecretsArgs),
+    /// Run an aegis command on a remote node via SSH
+    Remote(commands::remote::RemoteArgs),
+    /// Push aegis-env to a remote node and deploy configs
+    Push(commands::push::PushArgs),
+    /// Check system compliance and optionally fix drift
+    Enforce(commands::enforce::EnforceArgs),
 }
 
 #[tokio::main]
@@ -108,5 +114,8 @@ async fn main() -> Result<()> {
         Commands::Inventory(args) => commands::inventory::run(args, &ctx).await,
         Commands::Profile(args) => commands::profile::run(args, &ctx).await,
         Commands::Secrets(args) => commands::secrets::run(args, &ctx).await,
+        Commands::Remote(args) => commands::remote::run(args, &ctx).await,
+        Commands::Push(args) => commands::push::run(args, &ctx).await,
+        Commands::Enforce(args) => commands::enforce::run(args, &ctx).await,
     }
 }

@@ -1,11 +1,14 @@
 pub mod bootstrap;
 pub mod diff;
+pub mod enforce;
 pub mod init;
 pub mod inventory;
 pub mod link;
 pub mod net;
 pub mod opencode;
 pub mod profile;
+pub mod push;
+pub mod remote;
 pub mod secrets;
 pub mod status;
 pub mod sync;

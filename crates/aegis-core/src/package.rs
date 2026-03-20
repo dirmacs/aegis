@@ -18,6 +18,12 @@ pub struct PackageSpec {
     pub expected_version: Option<String>,
     #[serde(default)]
     pub features: Vec<String>,
+    #[serde(default)]
+    pub scoop_package: Option<String>,
+    #[serde(default)]
+    pub winget_id: Option<String>,
+    #[serde(default)]
+    pub scoop_bucket: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -25,6 +31,8 @@ pub struct PackageSpec {
 pub enum InstallMethod {
     Cargo,
     Apt,
+    Scoop,
+    Winget,
     Script,
     Mise,
 }
@@ -90,6 +98,8 @@ impl PackageSpec {
         match self.install_method {
             InstallMethod::Cargo => self.install_cargo(dry_run),
             InstallMethod::Apt => self.install_apt(dry_run),
+            InstallMethod::Scoop => self.install_scoop(dry_run),
+            InstallMethod::Winget => self.install_winget(dry_run),
             InstallMethod::Script => bail!("script-based install not yet implemented for {}", self.name),
             InstallMethod::Mise => bail!("mise-based install not yet implemented for {}", self.name),
         }
@@ -137,6 +147,59 @@ impl PackageSpec {
 
         if !status.success() {
             bail!("apt-get install {} failed", self.name);
+        }
+        Ok(())
+    }
+
+    fn install_scoop(&self, dry_run: bool) -> Result<()> {
+        let pkg = self.scoop_package.as_deref().unwrap_or(&self.name);
+
+        // Add bucket if specified and not already added
+        if let Some(bucket) = &self.scoop_bucket {
+            if !dry_run {
+                let _ = Command::new("scoop")
+                    .args(["bucket", "add", bucket])
+                    .status();
+            }
+        }
+
+        if dry_run {
+            info!("[dry-run] would run: scoop install {pkg}");
+            return Ok(());
+        }
+
+        info!("installing {} via scoop", pkg);
+        let status = Command::new("scoop")
+            .args(["install", pkg])
+            .status()
+            .with_context(|| format!("running scoop install {pkg}"))?;
+
+        if !status.success() {
+            bail!("scoop install {pkg} failed");
+        }
+        Ok(())
+    }
+
+    fn install_winget(&self, dry_run: bool) -> Result<()> {
+        let id = self.winget_id.as_deref().unwrap_or(&self.name);
+
+        if dry_run {
+            info!("[dry-run] would run: winget install {id}");
+            return Ok(());
+        }
+
+        info!("installing {} via winget", id);
+        let status = Command::new("winget")
+            .args([
+                "install", id,
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+            ])
+            .status()
+            .with_context(|| format!("running winget install {id}"))?;
+
+        if !status.success() {
+            bail!("winget install {id} failed");
         }
         Ok(())
     }
