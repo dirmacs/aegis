@@ -73,6 +73,9 @@ pub fn plan_remediation(
 
         // Check configs
         for cfg in &module.manifest.configs {
+            if !cfg.applies_to_current_os() {
+                continue;
+            }
             let source = module.config_source_path(cfg);
             let target = module.config_target_path(cfg)?;
             let strategy = module.effective_strategy(cfg, default_strategy);

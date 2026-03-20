@@ -129,6 +129,9 @@ pub async fn run(args: StatusArgs, ctx: &Context) -> Result<()> {
 
         // Config status
         for cfg in &module.manifest.configs {
+            if !cfg.applies_to_current_os() {
+                continue;
+            }
             let source = module.config_source_path(cfg);
             let target = module.config_target_path(cfg)?;
             let strategy = module.effective_strategy(cfg, manifest.aegis.strategy);
@@ -199,6 +202,9 @@ fn run_json(
 
         let mut configs = Vec::new();
         for cfg in &module.manifest.configs {
+            if !cfg.applies_to_current_os() {
+                continue;
+            }
             let source = module.config_source_path(cfg);
             let target = module.config_target_path(cfg)?;
             let strategy = module.effective_strategy(cfg, manifest.aegis.strategy);
