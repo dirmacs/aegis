@@ -13,6 +13,22 @@ pub struct ConfigMapping {
     pub target: String,
     #[serde(default)]
     pub strategy: Option<LinkStrategy>,
+    /// Optional OS filter: "linux", "windows", "macos". Skipped if current OS doesn't match.
+    #[serde(default)]
+    pub os: Option<String>,
+}
+
+impl ConfigMapping {
+    /// Returns true if this config applies to the current platform.
+    pub fn applies_to_current_os(&self) -> bool {
+        match self.os.as_deref() {
+            None => true,
+            Some("linux") => cfg!(target_os = "linux"),
+            Some("windows") => cfg!(target_os = "windows"),
+            Some("macos") => cfg!(target_os = "macos"),
+            Some(_) => true,
+        }
+    }
 }
 
 /// Deploy a config file using the given strategy.

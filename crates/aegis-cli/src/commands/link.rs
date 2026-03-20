@@ -50,6 +50,9 @@ pub async fn run_link(args: LinkArgs, ctx: &Context) -> Result<()> {
         }
 
         for cfg in &module.manifest.configs {
+            if !cfg.applies_to_current_os() {
+                continue;
+            }
             let source = module.config_source_path(cfg);
             let target = module.config_target_path(cfg)?;
             let strategy = module.effective_strategy(cfg, manifest.aegis.strategy);
@@ -120,6 +123,9 @@ pub async fn run_unlink(args: UnlinkArgs, ctx: &Context) -> Result<()> {
         }
 
         for cfg in &module.manifest.configs {
+            if !cfg.applies_to_current_os() {
+                continue;
+            }
             let target = module.config_target_path(cfg)?;
             undeploy_config(&target, ctx.dry_run)?;
             unlinked += 1;
