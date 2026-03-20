@@ -18,6 +18,35 @@ pub struct Manifest {
     pub profiles: HashMap<String, Profile>,
     #[serde(default)]
     pub modules: Vec<ModuleRef>,
+    #[serde(default)]
+    pub nodes: HashMap<String, NodeConfig>,
+    #[serde(default)]
+    pub backup: Option<BackupConfig>,
+}
+
+/// A remote node reachable via SSH over the mesh.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NodeConfig {
+    pub host: String,
+    pub user: String,
+    pub profile: String,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub aegis_env_path: Option<String>,
+    #[serde(default)]
+    pub identity_file: Option<String>,
+}
+
+/// Backup configuration for rsync to a remote node.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BackupConfig {
+    pub target_node: String,
+    pub remote_path: String,
+    #[serde(default)]
+    pub paths: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

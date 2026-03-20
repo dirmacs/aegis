@@ -175,32 +175,52 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
 
     // Build tool list by checking PATH
     let dirmacs_tools = [
-        "aegis", "lancor", "nimakai", "pawan", "daedra", "doltclaw",
-        "llama-server", "llama-cli", "wg", "wg-quick",
-        "cargo", "rustc", "node", "bun", "deno", "go", "nim", "python3",
-        "docker", "kubectl",
+        "aegis", "lancor", "nimakai", "pawan", "daedra", "doltclaw", "thulp",
+        "llama-server", "llama-cli", "wg",
+        "cargo", "rustc", "node", "bun", "deno", "go", "nim", "zig", "odin",
+        "python3", "python", "docker", "kubectl", "ollama",
+        "starship", "bat", "eza", "fd", "rg", "fzf", "zoxide", "delta",
+        "gh", "git",
     ];
 
     let mut tools = Vec::new();
     for name in &dirmacs_tools {
         if let Ok(path) = which::which(name) {
+            let version = get_tool_version(name);
             tools.push(ToolInfo {
                 name: name.to_string(),
-                version: String::new(), // version detection would need subprocess
+                version,
                 path: path.to_string_lossy().to_string(),
             });
         }
     }
 
-    // Find git repos in common locations
+    // Find git repos in common locations — platform-aware
     let mut repos = Vec::new();
-    let search_dirs: Vec<PathBuf> = if cfg!(target_os = "macos") {
+    let search_dirs: Vec<PathBuf> = if cfg!(target_os = "windows") {
+        let mut dirs = Vec::new();
+        // Common Windows dev directories
+        for drive in &["C:\\Development", "D:\\Development", "C:\\Users"] {
+            let p = PathBuf::from(drive);
+            if p.exists() {
+                dirs.push(p);
+            }
+        }
+        if let Some(home) = dirs::home_dir() {
+            dirs.push(home);
+        }
+        dirs
+    } else if cfg!(target_os = "macos") {
         vec![
             dirs::home_dir().unwrap_or_default(),
             PathBuf::from("/tmp"),
+            PathBuf::from("/opt"),
         ]
     } else {
-        vec![PathBuf::from("/opt")]
+        vec![
+            PathBuf::from("/opt"),
+            dirs::home_dir().unwrap_or_default(),
+        ]
     };
 
     for base in &search_dirs {
@@ -209,22 +229,33 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
                 let git_dir = entry.path().join(".git");
                 if git_dir.exists() {
                     let name = entry.file_name().to_string_lossy().to_string();
+                    let branch = git_branch(&entry.path());
+                    let dirty = git_dirty(&entry.path());
                     repos.push(RepoInfo {
                         name,
                         path: entry.path().to_string_lossy().to_string(),
-                        branch: String::new(),
+                        branch,
                         last_commit: String::new(),
-                        dirty: false,
+                        dirty,
                     });
                 }
             }
         }
     }
 
-    // Shell info
+    // Shell info — use correct PATH separator per platform
     let path_var = std::env::var("PATH").unwrap_or_default();
-    let path_dirs: Vec<String> = path_var.split(':').map(|s| s.to_string()).collect();
-    let default_shell = std::env::var("SHELL").unwrap_or_default();
+    let separator = if cfg!(target_os = "windows") { ';' } else { ':' };
+    let path_dirs: Vec<String> = path_var.split(separator).map(|s| s.to_string()).collect();
+    let default_shell = std::env::var("SHELL")
+        .or_else(|_| std::env::var("COMSPEC"))
+        .unwrap_or_default();
+
+    // Discover Ollama models
+    let models = discover_ollama_models();
+
+    // Discover running services
+    let services = discover_services();
 
     Ok(NodeInventory {
         node: node_name.to_string(),
@@ -242,10 +273,109 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
         },
         tools,
         repos,
-        services: Vec::new(),
-        models: Vec::new(),
+        services,
+        models,
         shell: ShellInfo { default_shell, path_dirs },
     })
+}
+
+/// Get a tool's version by running common version flags.
+fn get_tool_version(name: &str) -> String {
+    let flag = match name {
+        "go" => "version",
+        "zig" => "version",
+        _ => "--version",
+    };
+    std::process::Command::new(name)
+        .arg(flag)
+        .output()
+        .ok()
+        .and_then(|o| {
+            let out = String::from_utf8_lossy(&o.stdout).to_string();
+            let first = out.lines().next().unwrap_or("").trim().to_string();
+            if first.is_empty() { None } else { Some(first) }
+        })
+        .unwrap_or_default()
+}
+
+/// Get current git branch for a repo.
+fn git_branch(repo: &Path) -> String {
+    std::process::Command::new("git")
+        .args(["-C", &repo.to_string_lossy(), "branch", "--show-current"])
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Check if a git repo has uncommitted changes.
+fn git_dirty(repo: &Path) -> bool {
+    std::process::Command::new("git")
+        .args(["-C", &repo.to_string_lossy(), "status", "--porcelain"])
+        .output()
+        .ok()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false)
+}
+
+/// Discover locally available Ollama models.
+fn discover_ollama_models() -> Vec<ModelInfo> {
+    let output = match std::process::Command::new("ollama").arg("list").output() {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+        _ => return Vec::new(),
+    };
+
+    output
+        .lines()
+        .skip(1) // header
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let name = parts[0].to_string();
+                let size_str = parts.get(2).unwrap_or(&"0");
+                let size_bytes = parse_size(size_str);
+                Some(ModelInfo {
+                    name,
+                    path: String::new(),
+                    size_bytes,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Parse human-readable size like "1.9 GB" or "639 MB" to bytes.
+fn parse_size(s: &str) -> u64 {
+    let s = s.trim();
+    if let Ok(n) = s.parse::<f64>() {
+        // Assume GB if no unit
+        (n * 1_073_741_824.0) as u64
+    } else {
+        0
+    }
+}
+
+/// Discover running services by checking common ports/processes.
+fn discover_services() -> Vec<ServiceInfo> {
+    let mut services = Vec::new();
+    let checks = [
+        ("ollama", 11434, "ollama"),
+        ("docker", 2375, "docker"),
+    ];
+
+    for (name, port, binary) in &checks {
+        if which::which(binary).is_ok() {
+            services.push(ServiceInfo {
+                name: name.to_string(),
+                status: "available".to_string(),
+                port: Some(*port),
+                url: None,
+            });
+        }
+    }
+    services
 }
 
 /// Pull inventory from a remote node via SSH.
