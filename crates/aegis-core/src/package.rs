@@ -7,7 +7,15 @@ use tracing::info;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PackageSpec {
     pub name: String,
+    /// Install method. Defaults to "auto" which resolves at runtime per platform.
+    #[serde(default)]
     pub install_method: InstallMethod,
+    /// Human description — used by LLM resolver when method is auto.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Binary name to check on PATH (defaults to package name).
+    #[serde(default)]
+    pub binary: Option<String>,
     #[serde(default)]
     pub cargo_crate: Option<String>,
     #[serde(default)]
@@ -29,12 +37,20 @@ pub struct PackageSpec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum InstallMethod {
+    /// Resolve at runtime — heuristic → LLM → fallback
+    Auto,
     Cargo,
     Apt,
     Scoop,
     Winget,
     Script,
     Mise,
+}
+
+impl Default for InstallMethod {
+    fn default() -> Self {
+        Self::Auto
+    }
 }
 
 #[derive(Debug)]
@@ -70,8 +86,8 @@ impl PackageSpec {
 
     /// Check if the package binary is available.
     fn is_installed(&self) -> bool {
-        // Try `which` on the package name first
-        which::which(&self.name).is_ok()
+        let binary = self.binary.as_deref().unwrap_or(&self.name);
+        which::which(binary).is_ok()
     }
 
     /// Get the installed version string.
@@ -96,12 +112,127 @@ impl PackageSpec {
     /// Install this package.
     pub fn install(&self, dry_run: bool) -> Result<()> {
         match self.install_method {
+            InstallMethod::Auto => self.install_auto(dry_run),
             InstallMethod::Cargo => self.install_cargo(dry_run),
             InstallMethod::Apt => self.install_apt(dry_run),
             InstallMethod::Scoop => self.install_scoop(dry_run),
             InstallMethod::Winget => self.install_winget(dry_run),
             InstallMethod::Script => bail!("script-based install not yet implemented for {}", self.name),
             InstallMethod::Mise => bail!("mise-based install not yet implemented for {}", self.name),
+        }
+    }
+
+    fn install_auto(&self, dry_run: bool) -> Result<()> {
+        use crate::resolver::{self, ResolveCache};
+
+        let mut cache = ResolveCache::load();
+        let desc = self.description.as_deref().unwrap_or(&self.name);
+
+        let resolved = resolver::resolve(&self.name, desc, &mut cache)
+            .ok_or_else(|| anyhow::anyhow!(
+                "could not resolve install method for '{}' on {}/{}",
+                self.name, std::env::consts::OS, std::env::consts::ARCH,
+            ))?;
+
+        let _ = cache.save();
+
+        info!(
+            "resolved '{}' → {:?} ({}), source: {:?}",
+            self.name, resolved.method, resolved.manager_package, resolved.source
+        );
+
+        // Try the resolved method
+        let result = self.execute_resolved(&resolved, dry_run);
+
+        if let Err(ref e) = result {
+            if dry_run {
+                return result;
+            }
+            // Agentic retry: feed the error back to the LLM for an alternative
+            let error_msg = format!("{e}");
+            info!("first attempt failed for '{}', asking agent for alternative...", self.name);
+
+            if let Some(retry) = resolver::resolve_with_retry(
+                &self.name, desc, &mut cache, &error_msg,
+            ) {
+                info!(
+                    "retry resolved '{}' → {:?} ({})",
+                    self.name, retry.method, retry.manager_package
+                );
+                let _ = cache.save();
+                return self.execute_resolved(&retry, dry_run);
+            }
+        }
+
+        result
+    }
+
+    /// Execute a resolved install instruction.
+    fn execute_resolved(
+        &self,
+        resolved: &crate::resolver::ResolvedInstall,
+        dry_run: bool,
+    ) -> Result<()> {
+        // Script-based installs (from LLM agent)
+        if let Some(ref script) = resolved.script {
+            if dry_run {
+                info!("[dry-run] would run: {script}");
+                return Ok(());
+            }
+            info!("installing {} via agent script: {script}", self.name);
+            let status = Command::new("sh")
+                .args(["-c", script])
+                .status()
+                .with_context(|| format!("running script for {}", self.name))?;
+            if !status.success() {
+                bail!("script install for {} failed", self.name);
+            }
+            return Ok(());
+        }
+
+        // Manager-based installs
+        match resolved.method {
+            InstallMethod::Cargo => {
+                let spec = PackageSpec {
+                    name: self.name.clone(),
+                    install_method: InstallMethod::Cargo,
+                    cargo_crate: Some(resolved.manager_package.clone()),
+                    features: self.features.clone(),
+                    ..default_spec()
+                };
+                spec.install_cargo(dry_run)
+            }
+            InstallMethod::Apt => {
+                let spec = PackageSpec {
+                    name: resolved.manager_package.clone(),
+                    install_method: InstallMethod::Apt,
+                    ..default_spec()
+                };
+                spec.install_apt(dry_run)
+            }
+            InstallMethod::Scoop => {
+                let spec = PackageSpec {
+                    name: self.name.clone(),
+                    install_method: InstallMethod::Scoop,
+                    scoop_package: Some(resolved.manager_package.clone()),
+                    scoop_bucket: self.scoop_bucket.clone(),
+                    ..default_spec()
+                };
+                spec.install_scoop(dry_run)
+            }
+            InstallMethod::Winget => {
+                let spec = PackageSpec {
+                    name: self.name.clone(),
+                    install_method: InstallMethod::Winget,
+                    winget_id: Some(resolved.manager_package.clone()),
+                    ..default_spec()
+                };
+                spec.install_winget(dry_run)
+            }
+            InstallMethod::Script => {
+                bail!("script method but no script provided for {}", self.name)
+            }
+            _ => bail!("resolved method {:?} not supported for auto-install", resolved.method),
         }
     }
 
@@ -202,5 +333,22 @@ impl PackageSpec {
             bail!("winget install {id} failed");
         }
         Ok(())
+    }
+}
+
+fn default_spec() -> PackageSpec {
+    PackageSpec {
+        name: String::new(),
+        install_method: InstallMethod::Auto,
+        description: None,
+        binary: None,
+        cargo_crate: None,
+        git_repo: None,
+        version_check: None,
+        expected_version: None,
+        features: Vec::new(),
+        scoop_package: None,
+        winget_id: None,
+        scoop_bucket: None,
     }
 }
