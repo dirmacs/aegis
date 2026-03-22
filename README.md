@@ -114,7 +114,7 @@ aegis profile show NAME             Show profile details
 | [Ares](https://github.com/dirmacs/ares) | Agentic retrieval-enhanced server |
 | [Daedra](https://github.com/dirmacs/daedra) | Web search MCP server |
 | [Thulp](https://github.com/dirmacs/thulp) | Execution context engineering |
-| [Eruka](https://github.com/dirmacs/eruka) | Context intelligence layer |
+| [Eruka](https://eruka.dirmacs.com) | Context intelligence layer |
 | [Lancor](https://github.com/dirmacs/lancor) | llama.cpp client library |
 | **Aegis** | System configuration manager |
 

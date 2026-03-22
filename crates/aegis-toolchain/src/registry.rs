@@ -43,7 +43,7 @@ pub fn dirmacs_registry() -> Vec<ToolEntry> {
             name: "eruka".to_string(),
             description: "Context intelligence layer — schema-aware business context".to_string(),
             cargo_crate: "eruka".to_string(),
-            git_repo: "https://github.com/dirmacs/eruka".to_string(),
+            git_repo: "https://eruka.dirmacs.com".to_string(),
             binary_name: Some("eruka".to_string()),
             version_check: Some("eruka --version".to_string()),
         },
