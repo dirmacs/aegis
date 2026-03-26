@@ -79,11 +79,13 @@ aegis bootstrap
 
 ## Architecture
 
-4-crate Rust workspace:
+6-crate Rust workspace:
 
 | Crate | Description |
 |-------|-------------|
 | `aegis-core` | Manifest parsing, module system, templates, diffing |
+| `aegis-secrets` | Encrypted vault — AES-256-GCM + Argon2id for API keys/tokens |
+| `aegis-net` | Overlay network management (WireGuard/Nebula-style peer mesh) |
 | `aegis-opencode` | Typed TOML to opencode.json + oh-my-opencode.json |
 | `aegis-toolchain` | Dirmacs ecosystem install, update, health checks |
 | `aegis-cli` | Clap-based CLI binary |
@@ -116,6 +118,7 @@ aegis profile show NAME             Show profile details
 | [Thulp](https://github.com/dirmacs/thulp) | Execution context engineering |
 | [Eruka](https://eruka.dirmacs.com) | Context intelligence layer |
 | [Lancor](https://github.com/dirmacs/lancor) | llama.cpp client library |
+| [eruka-mcp](https://crates.io/crates/eruka-mcp) | MCP server for Eruka (crates.io) |
 | **Aegis** | System configuration manager |
 
 ## License
