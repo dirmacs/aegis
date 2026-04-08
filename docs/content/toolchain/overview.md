@@ -15,7 +15,6 @@ Aegis has a built-in registry of all dirmacs ecosystem tools and can install, up
 |------|-------------|-------------|------------|
 | [Ares](https://github.com/dirmacs/ares) | `ares-server` | Agentic retrieval-enhanced server — multi-provider LLM orchestration, tool calling, RAG | `api.ares.dirmacs.com` LIVE |
 | [Eruka](https://eruka.dirmacs.com) | `eruka-api` | Context intelligence layer — Eruka Tree (4-tier), schema-aware business context, gap detection, 13 MCP tools | `eruka.dirmacs.com` LIVE |
-| [Doltares](https://github.com/dirmacs/doltares) | `doltares` | Orchestration daemon — workflows, self-healing, skill execution | `claw.dirmacs.com` LIVE |
 | [Pawan](https://github.com/dirmacs/pawan) | `pawan` | CLI coding agent — StepFun Flash via NVIDIA NIM, task mode | `/usr/local/bin/pawan` LIVE |
 | [Doltclaw](https://github.com/dirmacs/doltclaw) | `doltclaw` | Minimal Rust agent runtime — direct NIM calls, replacing openclaw | built |
 
