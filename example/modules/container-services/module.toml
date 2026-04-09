@@ -1,0 +1,30 @@
+[module]
+name = "container-services"
+description = "Docker-compose managed services (ix, third-party). Aegis manages config, docker-compose manages runtime."
+
+# Container service environment/config files
+# These are templated by aegis but the services themselves are managed by docker-compose
+
+[[configs]]
+source = "ix-backend.env.template"
+target = "~/.ix/backend/.env"
+strategy = "template"
+
+[[configs]]
+source = "docker-compose.override.yml"
+target = "~/.ix/backend/docker-compose.override.yml"
+strategy = "template"
+optional = true
+
+[[hooks]]
+event = "post-link"
+command = """
+echo 'Checking container services...'
+if command -v docker &>/dev/null; then
+  if [ -f ~/.ix/backend/docker-compose.yml ]; then
+    cd ~/.ix/backend && docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
+  fi
+else
+  echo '  Docker not installed — container services skipped'
+fi
+"""

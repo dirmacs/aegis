@@ -18,7 +18,7 @@ channel_default_whatsapp_to = { source = "env", value = "CHANNEL_DEFAULT_WHATSAP
 
 [profiles.dev-vps]
 description = "Development VPS with full tooling"
-modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs", "vps-services"]
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs", "vps-services", "container-services"]
 variables = { gpu_available = "false" }
 
 [profiles.workstation]
@@ -53,3 +53,7 @@ path = "modules/dirmacs"
 [[modules]]
 name = "vps-services"
 path = "modules/vps-services"
+
+[[modules]]
+name = "container-services"
+path = "modules/container-services"
