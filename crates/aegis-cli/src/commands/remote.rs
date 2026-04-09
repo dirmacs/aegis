@@ -40,7 +40,7 @@ pub async fn run(args: RemoteArgs, ctx: &Context) -> Result<()> {
     let aegis_env_path = node
         .aegis_env_path
         .as_deref()
-        .unwrap_or("/opt/aegis-env");
+        .unwrap_or("~/.config/aegis/env");
 
     let subcommand = args.command.join(" ");
     let remote_cmd = format!(
