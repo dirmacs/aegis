@@ -38,7 +38,7 @@ pub async fn run(args: PushArgs, ctx: &Context) -> Result<()> {
     let remote_path = node
         .aegis_env_path
         .as_deref()
-        .unwrap_or("/opt/aegis-env");
+        .unwrap_or("~/.config/aegis/env");
 
     println!(
         "{} Pushing aegis-env to {} ({}:{})",

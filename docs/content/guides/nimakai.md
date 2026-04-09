@@ -27,8 +27,8 @@ apt-get install -y libssl-dev
 ### 3. Build nimakai
 
 ```bash
-git clone https://github.com/dirmacs/nimakai.git /opt/nimakai
-cd /opt/nimakai
+git clone https://github.com/dirmacs/nimakai.git ${DIRMACS_ROOT}/nimakai
+cd ${DIRMACS_ROOT}/nimakai
 nimble build
 ```
 
@@ -122,7 +122,7 @@ If the response contains a `tool_calls` array, the model can do agent work. If i
 
 1. Run `./nimakai list` to identify responsive models
 2. Run direct tool-use curl test (above) to verify agent capability
-3. Update `/opt/aegis/example/modules/ai-tools/opencode.toml` with verified models
+3. Update `${DIRMACS_ROOT}/aegis/example/modules/ai-tools/opencode.toml` with verified models
 4. Regenerate: `aegis opencode generate --input example/modules/ai-tools/opencode.toml`
 5. Test agents: `npx oh-my-opencode run --port 6000 --agent <name> --directory <dir> "<prompt>"`
 6. Always use `--port 6000` or higher — default ports 4096-4100 get stuck from zombie servers

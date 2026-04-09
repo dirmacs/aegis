@@ -80,7 +80,7 @@ export NVIDIA_API_KEY=$(grep NVIDIA_API_KEY ~/.config/opencode/.env | cut -d= -f
 
 npx oh-my-opencode run \
   --agent sisyphus \
-  --directory /opt/aegis \
+  --directory ${DIRMACS_ROOT}/aegis \
   "Add a --version flag to the CLI"
 ```
 
