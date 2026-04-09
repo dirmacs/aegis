@@ -1,0 +1,27 @@
+[module]
+name = "my-services"
+description = "Service configuration — templates env files from aegis variables"
+
+# Deploy gateway env (templated from aegis variables)
+[[configs]]
+source = "gateway.env"
+target = "${PROJECTS_ROOT}/my-gateway/.env"
+strategy = "template"
+
+# Deploy worker env additions
+[[configs]]
+source = "worker-extra.env"
+target = "${PROJECTS_ROOT}/my-worker/.env.extra"
+strategy = "template"
+
+[[hooks]]
+event = "post-link"
+command = """
+echo 'Reloading services after config update...'
+if systemctl is-active --quiet my-gateway; then
+  systemctl restart my-gateway && echo '  restarted my-gateway'
+fi
+if systemctl is-active --quiet my-worker; then
+  systemctl restart my-worker && echo '  restarted my-worker'
+fi
+"""
