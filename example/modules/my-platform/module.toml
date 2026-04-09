@@ -1,0 +1,46 @@
+[module]
+name = "my-platform"
+description = "Example platform toolchain — local source builds"
+
+# Core services
+[[packages]]
+name = "my-api"
+install_method = "script"
+version_check = "my-api --version"
+
+[[packages]]
+name = "my-worker"
+install_method = "script"
+version_check = "curl -sf http://localhost:3100/health | grep -q ok"
+
+# Agent runtime
+[[packages]]
+name = "my-agent"
+install_method = "cargo"
+cargo_crate = "my-agent-cli"
+version_check = "my-agent --version"
+
+# Search server
+[[packages]]
+name = "my-search"
+install_method = "cargo"
+cargo_crate = "my-search"
+version_check = "my-search --version"
+
+[[hooks]]
+event = "post-bootstrap"
+command = """
+echo 'Symlinking platform binaries...'
+for entry in \
+  "${PROJECTS_ROOT}/my-api/target/release/my-api:my-api" \
+  "${PROJECTS_ROOT}/my-worker/target/release/my-worker:my-worker" \
+  "${PROJECTS_ROOT}/my-agent/target/release/my-agent:my-agent"; do
+  bin="${entry%%:*}"
+  name="${entry##*:}"
+  if [ -f "$bin" ]; then
+    ln -sf "$bin" "$HOME/.local/bin/$name" 2>/dev/null && echo "  linked $name" || true
+  else
+    echo "  skipped $name (not built)"
+  fi
+done
+"""
