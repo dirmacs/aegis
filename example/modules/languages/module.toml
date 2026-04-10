@@ -1,0 +1,22 @@
+[module]
+name = "languages"
+description = "Programming language toolchains (Go, Rust, Python)"
+
+[[packages]]
+name = "rustup"
+install_method = "curl"
+version_check = "rustc --version"
+
+[[packages]]
+name = "python3"
+install_method = "apt"
+version_check = "python3 --version"
+
+[[env]]
+name = "GOPATH"
+value = "$HOME/go"
+
+[[env]]
+name = "PATH"
+value = "/usr/local/go/bin:$HOME/go/bin"
+prepend_path = true
