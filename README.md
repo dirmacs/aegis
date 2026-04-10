@@ -23,6 +23,7 @@ Aegis is a Rust CLI tool that manages system configurations from declarative TOM
 **Key features:**
 
 - **Config management** — symlink, copy, or template-render configs to their targets
+- **Environment variables** — declare `PATH` fragments and env vars per module, auto-generated as shell snippets
 - **OpenCode generation** — typed TOML to `opencode.json` + `oh-my-opencode.json` with NVIDIA NIM support
 - **Toolchain management** — install, update, and health-check ares, daedra, thulp, eruka, lancor
 - **Profiles** — different module sets and variables per machine type
