@@ -70,8 +70,8 @@ Aegis is one part of the dirmacs open-source AI infrastructure stack:
 | Project | Description |
 |---------|-------------|
 | [pawan](https://dirmacs.github.io/pawan) | Self-healing CLI coding agent — Rust-native, 34 tools, compiler-as-auditor |
-| [ares-server](https://github.com/dirmacs/ares-server) | LLM runtime — multi-provider routing, tool coordination, RAG |
-| [eruka](https://github.com/dirmacs/eruka) | Context memory engine — knowledge graph for agent session continuity |
+| [ares-server](https://github.com/dirmacs/ares) | LLM runtime — multi-provider routing, tool coordination, RAG |
+| [eruka](https://eruka.dirmacs.com) | Context memory engine — knowledge graph for agent session continuity |
 | [deagle](https://github.com/dirmacs/deagle) | Code intelligence — tree-sitter + SQLite graph, 9 languages |
 | [daedra](https://dirmacs.github.io/daedra) | Web search MCP server — 7 backends, automatic fallback |
 | [doltclaw](https://dirmacs.github.io/doltclaw) | Minimal Rust agent runtime for direct NIM/NVIDIA inference |
