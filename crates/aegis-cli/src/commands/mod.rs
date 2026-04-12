@@ -13,6 +13,7 @@ pub mod secrets;
 pub mod status;
 pub mod sync;
 pub mod toolchain;
+pub mod watch;
 
 use std::path::{Path, PathBuf};
 
