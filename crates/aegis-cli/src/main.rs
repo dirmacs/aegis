@@ -71,6 +71,8 @@ enum Commands {
     Push(commands::push::PushArgs),
     /// Check system compliance and optionally fix drift
     Enforce(commands::enforce::EnforceArgs),
+    /// Continuously watch for config drift (polls on interval, optional auto-sync)
+    Watch(commands::watch::WatchArgs),
 }
 
 #[tokio::main]
@@ -117,5 +119,6 @@ async fn main() -> Result<()> {
         Commands::Remote(args) => commands::remote::run(args, &ctx).await,
         Commands::Push(args) => commands::push::run(args, &ctx).await,
         Commands::Enforce(args) => commands::enforce::run(args, &ctx).await,
+        Commands::Watch(args) => commands::watch::run(args, &ctx).await,
     }
 }
