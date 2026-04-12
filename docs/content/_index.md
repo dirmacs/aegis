@@ -47,14 +47,31 @@ Think of it as a modern, Rust-native alternative to shell-script-based dotfile m
 
 ## Architecture
 
-Aegis is a 4-crate Rust workspace:
+Aegis is a 6-crate Rust workspace:
 
 ```
 aegis/
 ├── aegis-core        # Manifest parsing, module system, templates, diffing
 ├── aegis-opencode    # Typed TOML → opencode.json + oh-my-opencode.json
 ├── aegis-toolchain   # Dirmacs tool install, update, health checks
-└── aegis-cli         # Clap-based CLI binary
+├── aegis-net         # Overlay network management (CA, peers, WireGuard)
+├── aegis-secrets     # Encrypted secrets vault (passwords, API keys, tokens)
+└── aegis-cli         # Clap-based CLI binary + all subcommands
 ```
 
 Built with: `clap`, `serde`, `toml`, `tera`, `tokio`, `similar`, `lancor`, and `console`.
+
+---
+
+## dirmacs ecosystem
+
+Aegis is one part of the dirmacs open-source AI infrastructure stack:
+
+| Project | Description |
+|---------|-------------|
+| [pawan](https://dirmacs.github.io/pawan) | Self-healing CLI coding agent — Rust-native, 34 tools, compiler-as-auditor |
+| [ares-server](https://github.com/dirmacs/ares-server) | LLM runtime — multi-provider routing, tool coordination, RAG |
+| [eruka](https://github.com/dirmacs/eruka) | Context memory engine — knowledge graph for agent session continuity |
+| [deagle](https://github.com/dirmacs/deagle) | Code intelligence — tree-sitter + SQLite graph, 9 languages |
+| [daedra](https://dirmacs.github.io/daedra) | Web search MCP server — 7 backends, automatic fallback |
+| [doltclaw](https://dirmacs.github.io/doltclaw) | Minimal Rust agent runtime for direct NIM/NVIDIA inference |
