@@ -1,0 +1,25 @@
+# Rust build output (dwarfs source on this estate).
+target/
+**/target/
+
+# VCS / CI metadata.
+.git/
+.gitignore
+.github/
+
+# Docs, examples, tests — not needed to build the binary.
+docs/
+example/
+**/tests/
+
+# Editor / OS cruft.
+*.swp
+.DS_Store
+.idea/
+.vscode/
+
+# Docker self-reference.
+Dockerfile
+.dockerignore
+docker-compose*.yml
+compose*.yml
