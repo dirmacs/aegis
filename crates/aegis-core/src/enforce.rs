@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::config::{ConfigMapping, deploy_config};
-use crate::manifest::{LinkStrategy, Manifest};
+use crate::config::deploy_config;
+use crate::manifest::LinkStrategy;
 use crate::module::Module;
 use crate::package::PackageStatus;
 
