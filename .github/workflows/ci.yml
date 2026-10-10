@@ -49,3 +49,136 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+
+  # Coverage (cargo-tarpaulin) + complexity (cargo-crap) gate.
+  #
+  # One job, one coverage run, two gates fed by it: tarpaulin runs the whole
+  # workspace suite under instrumentation (it exits non-zero on any test
+  # failure, so the coverage run IS the test run) and writes lcov.info, which
+  # cargo-crap then scores. cargo-crap never runs tests itself — it parses
+  # source with syn and reads the LCOV, scoring CRAP(m) = CC²·(1−cov)³ + CC.
+  # Without the coverage feed every function scores cov=0 and CRAP collapses
+  # to CC³+CC, so the complexity gate would measure nothing; that is why the
+  # two live in one job.
+  #
+  # Public repo, so the gate runs on the repo's existing convention,
+  # ubuntu-latest, like every other job in this file. (dirmacs private repos
+  # must use the self-hosted dirmacs-ci labels instead: they get zero-step
+  # admission refusal on GitHub-hosted runners.)
+  #
+  # Engine choice is MEASURED, not preferred. The ptrace engine is blocked on
+  # the fleet's self-hosted runners (sysbox-confined containers tarpaulin
+  # cannot ptrace: "ASLR disable failed: EPERM", measured on dirmacs/skywalkers
+  # run 38064108686). ubuntu-latest would permit ptrace, but the estate
+  # standardizes on the Llvm engine for consistency with every other repo's
+  # gate run — and Llvm (-Cinstrument-coverage + llvm-profdata) is the more
+  # accurate of the two. Hence the llvm-tools-preview component above.
+  #
+  # Tool versions are pinned and asserted (tarpaulin 0.37.5, cargo-crap 0.6.1,
+  # crates.io max_stable_version at authoring) so two runs cannot disagree
+  # because one host happened to have a newer tool.
+  #
+  # Thresholds are the repo's MEASURED first-run level (see the gate PR):
+  #   coverage 23.15% (598/2583 lines), 72 tests, all passing;
+  #   worst CRAP 992.0 = run_link (crates/aegis-cli/src/commands/link.rs:103,
+  #   CC 31, 0% coverage). Floor = measured −3pp for engine variance; ceiling
+  #   = measured max +~10% headroom. Both ratchet upward/downward via follow-up
+  #   PRs (coverage floor +2pp per merged PR; ceiling lowered on schedule once
+  #   tested functions drop the worst cluster).
+  coverage-crap:
+    name: coverage + CRAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Repo-specific constants, measured on the first run — see the PR that
+      # added this job for the numbers and the ratchet.
+      #
+      # tarpaulin 0.37.5 / ptrace on the build host: 23.15% (598/2583 lines),
+      # 72 tests passing. Worst CRAP 992.0 = run_link (CC 31, 0% coverage).
+      COVERAGE_FLOOR: "20"
+      CRAP_THRESHOLD: "1100"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # llvm-tools-preview backs the llvm engine (llvm-profdata/llvm-cov).
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cargo.lock is committed, not generated
+        # --locked below exits non-zero if the lockfile is missing or would
+        # have to change, so the dependency set only moves when a human
+        # commits a reviewed lockfile. That mechanism needs the file first.
+        run: git ls-files --error-unmatch Cargo.lock
+
+      - name: install pinned coverage + CRAP tools
+        run: |
+          set -euo pipefail
+          TARPAULIN_VERSION=0.37.5
+          CRAP_VERSION=0.6.1
+          case "$(uname -m)" in
+            aarch64) arch=aarch64 ;;
+            x86_64)  arch=x86_64 ;;
+            *) echo "::error::unsupported architecture $(uname -m)"; exit 1 ;;
+          esac
+          mkdir -p "$HOME/.local/bin"
+          # $GITHUB_PATH only affects LATER steps, not this one — the version
+          # assertions below run here, so the dir must be on PATH inside this
+          # same script.
+          export PATH="$HOME/.local/bin:$PATH"
+          curl -sSLf "https://github.com/xd009642/tarpaulin/releases/download/${TARPAULIN_VERSION}/cargo-tarpaulin-${arch}-unknown-linux-gnu.tar.gz" \
+            | tar xz -C "$HOME/.local/bin"
+          curl -sSLf "https://github.com/minikin/cargo-crap/releases/download/v${CRAP_VERSION}/cargo-crap-${arch}-unknown-linux-gnu.tar.gz" \
+            | tar xz -C "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          cargo-tarpaulin --version | grep -qx "tarpaulin ${TARPAULIN_VERSION}"
+          cargo-crap --version | grep -qx "cargo-crap ${CRAP_VERSION}"
+
+      - name: coverage gate (tarpaulin, llvm engine)
+        # Workspace repo (6 members under crates/), so --workspace.
+        run: >-
+          cargo tarpaulin --engine Llvm --workspace --locked
+          --out Lcov --fail-under "$COVERAGE_FLOOR" --timeout 300
+
+      - name: CRAP gate (fed by this run's coverage)
+        # The whole workspace is gated — including crates/aegis-cli. That is
+        # deliberate: cargo-crap 0.6.1 ignores --exclude in --workspace mode
+        # (measured: 216 functions scored with and without it), so the old
+        # per-file exclusion would have been silently dead and the ceiling
+        # would have measured only the library surface. The ceiling above
+        # covers the current worst cluster, all CLI command wiring with CC
+        # 17–31 at 0% coverage; the ratchet lowers the ceiling as that code
+        # gains tests. cargo-crap logs one expected warning about
+        # source/LCOV scope mismatch counts — it is informational.
+        run: >-
+          cargo crap --lcov lcov.info --workspace
+          --threshold "$CRAP_THRESHOLD" --fail-above
+          --format json > crap.json
+
+      - name: write the run summary
+        if: always()
+        run: |
+          set -uo pipefail
+          {
+            echo "### Coverage + CRAP gate"
+            echo
+            if [ -f lcov.info ]; then
+              awk -F: '/^LH:/{lh+=$2} /^LF:/{lf+=$2} END {if (lf>0) printf "Line coverage: %.2f%% (%d/%d lines)\n", 100*lh/lf, lh, lf; else print "Line coverage: no LCOV data"}' lcov.info
+            else
+              echo "Line coverage: no lcov.info (the coverage run did not complete)"
+            fi
+            if [ -f crap.json ]; then
+              # Shell-only parse: the fleet runner containers carry no python3,
+              # and a crashing summary must not redden a gate that passed.
+              vals=$(tr -d ' \n' < crap.json | grep -o '"crap":[0-9.]*' | cut -d: -f2)
+              if [ -n "$vals" ]; then
+                n=$(printf '%s\n' "$vals" | grep -c .)
+                worst=$(printf '%s\n' "$vals" | sort -g | tail -1)
+                echo "Functions scored: $n; worst CRAP: $worst; threshold $CRAP_THRESHOLD"
+              else
+                echo "WARNING: crap.json present but no entries parsed"
+              fi
+            else
+              echo "CRAP: no crap.json (the CRAP step did not complete)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
