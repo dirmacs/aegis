@@ -1,0 +1,37 @@
+[package]
+name = "aegis-serve"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "aegis-serve"
+path = "src/main.rs"
+
+[lib]
+name = "aegis_serve"
+path = "src/lib.rs"
+
+[dependencies]
+# Workspace dependencies
+aegis-secrets = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# HTTP layer: hyper 1.8 (already resolved in the workspace lockfile)
+hyper = { version = "1.8", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["server", "http1", "tokio"] }
+http-body = "1"
+http-body-util = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+tracing-core = "0.1"
