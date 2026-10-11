@@ -36,13 +36,10 @@ async fn round_trip(
     stream.write_all(request.as_bytes()).await.expect("write");
 
     let mut raw = Vec::new();
-    tokio::time::timeout(
-        Duration::from_secs(10),
-        stream.read_to_end(&mut raw),
-    )
-    .await
-    .expect("response deadline")
-    .expect("read");
+    tokio::time::timeout(Duration::from_secs(10), stream.read_to_end(&mut raw))
+        .await
+        .expect("response deadline")
+        .expect("read");
     let text = String::from_utf8_lossy(&raw).into_owned();
     let status: u16 = std::str::from_utf8(&raw[9..12])
         .expect("status slice")
@@ -56,15 +53,11 @@ async fn round_trip(
 }
 
 /// Starts an in-process server on an ephemeral port with one seeded secret.
-async fn start_server() -> (
-    std::net::SocketAddr,
-    tempfile::TempDir,
-    Arc<AppState>,
-) {
+async fn start_server() -> (std::net::SocketAddr, tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().expect("temp dir");
     let vault = dir.path().join("vault.toml");
-    let config = Config::from_parts(&vault, "master-pw", "eruka:tok-eruka", "127.0.0.1:0")
-        .expect("config");
+    let config =
+        Config::from_parts(&vault, "master-pw", "eruka:tok-eruka", "127.0.0.1:0").expect("config");
     let state = Arc::new(AppState::new(&config).expect("state"));
     {
         let mut guard = state.vault();
@@ -89,9 +82,15 @@ async fn in_process_server_handles_every_route_over_tcp() {
     let (status, body) = round_trip(addr, "GET", "/healthz", None, None).await;
     assert_eq!(status, 200, "body: {body}");
     assert!(body.contains("\"status\":\"ok\""), "body: {body}");
-    assert!(body.contains("\"version\""), "healthz must carry a version: {body}");
+    assert!(
+        body.contains("\"version\""),
+        "healthz must carry a version: {body}"
+    );
     assert!(!body.contains(VALUE), "healthz leaked a value: {body}");
-    assert!(!body.contains("api-key"), "healthz leaked vault metadata: {body}");
+    assert!(
+        !body.contains("api-key"),
+        "healthz leaked vault metadata: {body}"
+    );
 
     // PUT /api/v1/secrets/{key}
     let (status, body) = round_trip(
@@ -105,8 +104,14 @@ async fn in_process_server_handles_every_route_over_tcp() {
     assert_eq!(status, 200, "body: {body}");
 
     // GET /api/v1/secrets/{key} — the only route that returns a value.
-    let (status, body) = round_trip(addr, "GET", "/api/v1/secrets/telegram-token", Some(TOKEN), None)
-        .await;
+    let (status, body) = round_trip(
+        addr,
+        "GET",
+        "/api/v1/secrets/telegram-token",
+        Some(TOKEN),
+        None,
+    )
+    .await;
     assert_eq!(status, 200);
     assert_eq!(body, VALUE, "authorised GET must return exactly the value");
 
@@ -115,11 +120,15 @@ async fn in_process_server_handles_every_route_over_tcp() {
     assert_eq!(status, 200);
     assert!(body.contains("telegram-token"), "body: {body}");
     assert!(body.contains("api-key"), "body: {body}");
-    assert!(!body.contains(VALUE), "list response leaked a value: {body}");
+    assert!(
+        !body.contains(VALUE),
+        "list response leaked a value: {body}"
+    );
     let _ = &state;
 
     // DELETE /api/v1/secrets/{key}
-    let (status, _) = round_trip(addr, "DELETE", "/api/v1/secrets/api-key", Some(TOKEN), None).await;
+    let (status, _) =
+        round_trip(addr, "DELETE", "/api/v1/secrets/api-key", Some(TOKEN), None).await;
     assert_eq!(status, 200);
     let (status, _) = round_trip(addr, "GET", "/api/v1/secrets/api-key", Some(TOKEN), None).await;
     assert_eq!(status, 404, "deleted key must be gone");
@@ -170,11 +179,17 @@ async fn in_process_server_rejects_bad_bearer_tokens() {
         );
         stream.write_all(request.as_bytes()).await.expect("write");
         let mut raw_response = Vec::new();
-        tokio::time::timeout(Duration::from_secs(10), stream.read_to_end(&mut raw_response))
-            .await
-            .expect("deadline")
-            .expect("read");
-        let status: u16 = std::str::from_utf8(&raw_response[9..12]).unwrap().parse().unwrap();
+        tokio::time::timeout(
+            Duration::from_secs(10),
+            stream.read_to_end(&mut raw_response),
+        )
+        .await
+        .expect("deadline")
+        .expect("read");
+        let status: u16 = std::str::from_utf8(&raw_response[9..12])
+            .unwrap()
+            .parse()
+            .unwrap();
         assert_eq!(status, 401, "Authorization: {raw:?} must be rejected");
     }
 
@@ -186,11 +201,17 @@ async fn in_process_server_rejects_bad_bearer_tokens() {
         );
         stream.write_all(request.as_bytes()).await.expect("write");
         let mut raw_response = Vec::new();
-        tokio::time::timeout(Duration::from_secs(10), stream.read_to_end(&mut raw_response))
-            .await
-            .expect("deadline")
-            .expect("read");
-        let status: u16 = std::str::from_utf8(&raw_response[9..12]).unwrap().parse().unwrap();
+        tokio::time::timeout(
+            Duration::from_secs(10),
+            stream.read_to_end(&mut raw_response),
+        )
+        .await
+        .expect("deadline")
+        .expect("read");
+        let status: u16 = std::str::from_utf8(&raw_response[9..12])
+            .unwrap()
+            .parse()
+            .unwrap();
         assert_eq!(status, 401, "Authorization: {raw:?} must be rejected");
     }
 
@@ -204,17 +225,30 @@ async fn in_process_server_rejects_bad_bearer_tokens() {
     );
     stream.write_all(request.as_bytes()).await.expect("write");
     let mut raw_response = Vec::new();
-    tokio::time::timeout(Duration::from_secs(10), stream.read_to_end(&mut raw_response))
-        .await
-        .expect("deadline")
-        .expect("read");
-    let status: u16 = std::str::from_utf8(&raw_response[9..12]).unwrap().parse().unwrap();
-    assert_eq!(status, 200, "OWS-stripped token must match the configured one");
+    tokio::time::timeout(
+        Duration::from_secs(10),
+        stream.read_to_end(&mut raw_response),
+    )
+    .await
+    .expect("deadline")
+    .expect("read");
+    let status: u16 = std::str::from_utf8(&raw_response[9..12])
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        status, 200,
+        "OWS-stripped token must match the configured one"
+    );
 }
 
 // ---- The real binary refuses to start -------------------------------------
 
-fn spawn_service(vault_password: Option<&str>, tokens: Option<&str>, vault_path: Option<&str>) -> Command {
+fn spawn_service(
+    vault_password: Option<&str>,
+    tokens: Option<&str>,
+    vault_path: Option<&str>,
+) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_aegis-serve"));
     command.env_clear();
     // Never allow a test to fall back to the production defaults.
@@ -267,10 +301,7 @@ fn binary_refuses_to_start_with_blank_password() {
 
 #[test]
 fn binary_refuses_to_start_without_tokens() {
-    assert_refused(
-        spawn_service(Some("master-pw"), None, None),
-        "AEGIS_TOKENS",
-    );
+    assert_refused(spawn_service(Some("master-pw"), None, None), "AEGIS_TOKENS");
 }
 
 #[test]

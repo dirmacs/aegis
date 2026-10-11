@@ -35,8 +35,15 @@ pub const ENV_BIND: &str = "AEGIS_BIND";
 
 /// Vault path used when `AEGIS_VAULT_PATH` is unset (`/data/vault.json`).
 pub const DEFAULT_VAULT_PATH: &str = "/data/vault.json";
-/// Bind address used when `AEGIS_BIND` is unset (`0.0.0.0:8477`).
-pub const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8477";
+/// Bind address used when `AEGIS_BIND` is unset.
+///
+/// Loopback only, deliberately. The service serves secret values and accepts
+/// bearer tokens over plain HTTP, so a wildcard default would put both on the
+/// wire in the clear to anything that can route to the host. Widening beyond
+/// the host is an explicit `AEGIS_BIND` opt-in, and if that is ever done it
+/// must be paired with a transport that encrypts — the default is the safe
+/// posture, not a claim that plaintext is acceptable.
+pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1:8477";
 
 /// Prefix required on the `Authorization` header.
 pub const BEARER_PREFIX: &str = "Bearer ";
@@ -73,7 +80,10 @@ impl fmt::Debug for Config {
         f.debug_struct("Config")
             .field("vault_path", &self.vault_path)
             .field("vault_password", &"[redacted]")
-            .field("tokens", &format_args!("{} agents (values redacted)", self.tokens.len()))
+            .field(
+                "tokens",
+                &format_args!("{} agents (values redacted)", self.tokens.len()),
+            )
             .field("bind", &self.bind)
             .finish()
     }
@@ -171,7 +181,11 @@ impl AppState {
     /// password — when the vault cannot be read or parsed, or when the supplied
     /// password cannot decrypt the existing vault contents.
     pub fn new(config: &Config) -> Result<Self> {
-        Self::with_vault(&config.vault_path, config.vault_password(), config.tokens.clone())
+        Self::with_vault(
+            &config.vault_path,
+            config.vault_password(),
+            config.tokens.clone(),
+        )
     }
 
     /// [`AppState::new`] with explicit inputs, for tests.
@@ -281,7 +295,8 @@ mod tests {
         );
         // Password present, tokens absent entirely.
         assert_eq!(
-            Config::from_env_values(Some("v.toml".into()), Some("pw".into()), None, None).unwrap_err(),
+            Config::from_env_values(Some("v.toml".into()), Some("pw".into()), None, None)
+                .unwrap_err(),
             ConfigError::MissingTokens,
             "absent tokens must be reported as absent, not as empty"
         );
@@ -342,7 +357,10 @@ mod tests {
         // Even if a caller bypassed validation, parsing an empty token string
         // must produce a map with no entries, so no request can match.
         let map = crate::auth::parse_tokens("");
-        assert!(map.is_empty(), "empty input must not produce any token entry");
+        assert!(
+            map.is_empty(),
+            "empty input must not produce any token entry"
+        );
         let builder = hyper::http::HeaderMap::new();
         assert!(
             !crate::auth::is_authorized(&map, &builder),
@@ -357,13 +375,28 @@ mod tests {
         let rendered = format!("{config:?}");
         assert!(!rendered.contains("master-pw"), "password leaked in Debug");
         assert!(!rendered.contains("s3cret"), "token leaked in Debug");
-        assert!(rendered.contains("1 agents"), "agent count should still be visible");
+        assert!(
+            rendered.contains("1 agents"),
+            "agent count should still be visible"
+        );
     }
 
     #[test]
     fn config_defaults_match_the_declared_contract() {
         assert_eq!(DEFAULT_VAULT_PATH, "/data/vault.json");
-        assert_eq!(DEFAULT_BIND_ADDR, "0.0.0.0:8477");
+        assert_eq!(DEFAULT_BIND_ADDR, "127.0.0.1:8477");
+        // Parse it the way the service does, so the default cannot silently
+        // drift to a wildcard address: a loopback default is a property of
+        // the address, not of the string.
+        let ip = DEFAULT_BIND_ADDR
+            .rsplit_once(':')
+            .expect("default bind has a :port")
+            .0;
+        let addr: std::net::IpAddr = ip.parse().expect("default bind has an IP");
+        assert!(
+            addr.is_loopback(),
+            "default bind must be loopback, was {addr}"
+        );
         assert_eq!(ENV_VAULT_PASSWORD, "AEGIS_VAULT_PASSWORD");
         assert_eq!(ENV_TOKENS, "AEGIS_TOKENS");
         assert_eq!(ENV_VAULT_PATH, "AEGIS_VAULT_PATH");
@@ -405,8 +438,9 @@ mod tests {
             store.set("api-key", "value-1234", &["eruka"]).unwrap();
             store.save().unwrap();
         }
-        let error = AppState::with_vault(&path, "wrong-password", token_map(&[("eruka", "s3cret")]))
-            .expect_err("wrong password must fail");
+        let error =
+            AppState::with_vault(&path, "wrong-password", token_map(&[("eruka", "s3cret")]))
+                .expect_err("wrong password must fail");
         let chain = format!("{error:#}");
         assert!(
             !chain.contains("value-1234"),

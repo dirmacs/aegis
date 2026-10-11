@@ -39,7 +39,10 @@ pub fn parse_tokens(raw: &str) -> HashMap<String, String> {
 /// `Bearer ` prefix, or an empty token — every case the caller must treat as
 /// unauthorized rather than trying to match.
 pub fn bearer_token(headers: &HeaderMap) -> Option<&str> {
-    let value = headers.get(hyper::http::header::AUTHORIZATION)?.to_str().ok()?;
+    let value = headers
+        .get(hyper::http::header::AUTHORIZATION)?
+        .to_str()
+        .ok()?;
     let token = value.strip_prefix(super::state::BEARER_PREFIX)?;
     if token.is_empty() || token.trim().is_empty() {
         return None;
@@ -106,7 +109,15 @@ mod tests {
 
     #[test]
     fn malformed_pairs_are_dropped_not_guessed() {
-        for raw in ["", "   ", "eruka", "eruka:", ":only-token", " , , ", "eruka: ,ares:t"] {
+        for raw in [
+            "",
+            "   ",
+            "eruka",
+            "eruka:",
+            ":only-token",
+            " , , ",
+            "eruka: ,ares:t",
+        ] {
             let parsed = parse_tokens(raw);
             if raw == "eruka: ,ares:t" {
                 assert_eq!(parsed.len(), 1, "only the valid pair should survive");
@@ -128,15 +139,15 @@ mod tests {
     fn every_bad_authorization_shape_is_rejected() {
         let tokens = map(&[("eruka", "s3cret")]);
         for bad in [
-            "",                        // no header value at all
-            "s3cret",                  // bare token, no scheme
-            "Bearer s3cret-typo",      // wrong token
+            "",                          // no header value at all
+            "s3cret",                    // bare token, no scheme
+            "Bearer s3cret-typo",        // wrong token
             "Bearer s3cret-with-suffix", // right prefix, extra bytes
-            "bearer s3cret",           // lowercase scheme
-            "BEARER s3cret",           // uppercase scheme
-            "Bearer  ",                // whitespace-only token
-            "Basic c3NyZWN0",          // wrong scheme, correct base64 of s3cret
-            "Bearer s3cret ",          // trailing space makes the token longer
+            "bearer s3cret",             // lowercase scheme
+            "BEARER s3cret",             // uppercase scheme
+            "Bearer  ",                  // whitespace-only token
+            "Basic c3NyZWN0",            // wrong scheme, correct base64 of s3cret
+            "Bearer s3cret ",            // trailing space makes the token longer
         ] {
             let headers = if bad.is_empty() {
                 HeaderMap::new()

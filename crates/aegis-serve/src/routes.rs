@@ -255,7 +255,7 @@ pub async fn serve(listener: TcpListener, state: Arc<AppState>) -> Result<()> {
                 debug!(error = %error, "connection closed with error");
             }
         });
-    };
+    }
 }
 
 #[cfg(test)]
@@ -292,7 +292,10 @@ mod tests {
     fn request(method: Method, path: &str, token: Option<&str>) -> Request<Body> {
         let mut builder = Request::builder().method(method).uri(path);
         if let Some(token) = token {
-            builder = builder.header(hyper::http::header::AUTHORIZATION, format!("Bearer {token}"));
+            builder = builder.header(
+                hyper::http::header::AUTHORIZATION,
+                format!("Bearer {token}"),
+            );
         }
         builder.body(Body::from("")).expect("request")
     }
@@ -326,8 +329,14 @@ mod tests {
         assert_eq!(body["service"], "aegis-serve");
         assert_eq!(body["version"], env!("CARGO_PKG_VERSION"));
         // The healthcheck must not describe vault contents.
-        assert!(!body.to_string().contains(KEY), "healthz leaked a key: {body}");
-        assert!(!body.to_string().contains(VALUE), "healthz leaked a value: {body}");
+        assert!(
+            !body.to_string().contains(KEY),
+            "healthz leaked a key: {body}"
+        );
+        assert!(
+            !body.to_string().contains(VALUE),
+            "healthz leaked a value: {body}"
+        );
     }
 
     #[tokio::test]
@@ -356,7 +365,11 @@ mod tests {
     #[tokio::test]
     async fn get_returns_the_value_for_a_known_key() {
         let (_dir, state) = state_with_secret().await;
-        let (status, body) = status_of(auth_request(Method::GET, &format!("{SECRET_PREFIX}{KEY}")), state).await;
+        let (status, body) = status_of(
+            auth_request(Method::GET, &format!("{SECRET_PREFIX}{KEY}")),
+            state,
+        )
+        .await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body, VALUE, "authorised GET must return exactly the value");
     }
@@ -428,10 +441,21 @@ mod tests {
             (Method::DELETE, format!("{SECRET_PREFIX}{KEY}")),
         ];
         for (method, path) in protected {
-            for bad in [None, Some(""), Some("wrong-token"), Some(TOKEN), Some("Bearer")] {
-                let (status, _) = status_of(request(method.clone(), &path, bad), state.clone()).await;
+            for bad in [
+                None,
+                Some(""),
+                Some("wrong-token"),
+                Some(TOKEN),
+                Some("Bearer"),
+            ] {
+                let (status, _) =
+                    status_of(request(method.clone(), &path, bad), state.clone()).await;
                 if bad == Some(TOKEN) {
-                    assert_eq!(status, StatusCode::OK, "control: {method} {path} with a good token");
+                    assert_eq!(
+                        status,
+                        StatusCode::OK,
+                        "control: {method} {path} with a good token"
+                    );
                 } else {
                     assert_eq!(
                         status,
@@ -480,7 +504,8 @@ mod tests {
             (Method::PUT, "/healthz"),
         ];
         for (method, path) in cases {
-            let (status, _) = status_of(request(method.clone(), path, Some(TOKEN)), state.clone()).await;
+            let (status, _) =
+                status_of(request(method.clone(), path, Some(TOKEN)), state.clone()).await;
             assert_eq!(
                 status,
                 StatusCode::NOT_FOUND,
@@ -499,7 +524,11 @@ mod tests {
             state.clone(),
         )
         .await;
-        assert_eq!(status, StatusCode::OK, "the query must not reroute the request");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the query must not reroute the request"
+        );
         assert_eq!(body, VALUE);
 
         // A query on the collection route is likewise ignored, not a 404 and
