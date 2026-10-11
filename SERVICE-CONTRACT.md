@@ -45,7 +45,16 @@ Shared by the service crate and the compose file that follows.
 | `AEGIS_VAULT_PASSWORD` | master password, REQUIRED | — |
 | `AEGIS_TOKENS` | `agent:token,agent:token`, REQUIRED | — |
 | `AEGIS_VAULT_PATH` | vault file path | `/data/vault.json` |
-| `AEGIS_BIND` | bind address | `0.0.0.0:8477` |
+| `AEGIS_BIND` | bind address | `127.0.0.1:8477` (loopback) |
+
+The loopback default is deliberate: the service serves secret values and
+accepts bearer tokens over plain HTTP, so a wildcard default would put
+both on the wire in the clear to anything that can route to the host.
+Same-host agents are served by default; widening is an explicit opt-in.
+
+**This is not a claim that plaintext is acceptable.** The default makes the
+posture safe. A non-loopback bind still needs an encrypting transport,
+which is not built yet — see the gap below.
 
 ### Routes
 `GET /healthz` (unauthenticated, version + status only); `GET /api/v1/secrets`
@@ -71,3 +80,13 @@ Separate slice. `aegis-net` currently evaluates firewall rules and generates
 WireGuard config but nothing brings an interface up, distributes configs, or
 applies the firewall. Risk already flagged to the owner once and accepted: a
 wrong `AllowedIPs` silently drops traffic and presents as a network fault.
+
+## Known gap — no transport encryption
+There is no TLS in the service. `GET /api/v1/secrets/{key}` returns the secret
+value and the caller's bearer token in cleartext. The loopback default keeps
+that off the wire for same-host use, which is why it shipped. It does **not**
+make cross-machine use safe, and an SDN is a private network, not a
+substitute for encryption. Any non-loopback deployment must first land mTLS —
+`aegis-net` already has an Ed25519 CA and node certificates, so per-agent
+client certs are the natural fit and compose with the SDN work. Until that
+lands, do not bind this service to anything other than loopback.
