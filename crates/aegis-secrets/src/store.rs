@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -148,7 +149,9 @@ impl SecretStore {
         let content =
             toml::to_string_pretty(&vault_file).context("Failed to serialize vault to TOML")?;
 
-        std::fs::write(&self.path, content)
+        let mut file = create_owner_only_file(&self.path)
+            .with_context(|| format!("Failed to write vault file to {}", self.path.display()))?;
+        file.write_all(content.as_bytes())
             .with_context(|| format!("Failed to write vault file to {}", self.path.display()))?;
 
         debug!("Vault saved to {:?}", self.path);
@@ -242,6 +245,36 @@ fn current_timestamp() -> String {
         .unwrap()
         .as_secs()
         .to_string()
+}
+
+/// Create (or truncate) `path` for writing with owner-only permissions (0o600).
+///
+/// The mode rides along with the `O_CREAT` call, so it is applied to a file this
+/// function creates and to nothing else. An existing path — including a symlink
+/// — is never chmod'ed, so no symlink is followed or dereferenced to set the
+/// mode. A file that already exists with a wider mode keeps it (the mode
+/// argument is ignored unless the file is created here); tightening such a file
+/// would require `set_permissions`, which resolves symlinks, so it is
+/// deliberately left to the owner of the path.
+#[cfg(unix)]
+fn create_owner_only_file(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+fn create_owner_only_file(path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)
 }
 
 #[cfg(test)]
@@ -369,5 +402,46 @@ mod tests {
         assert!(!store4.contains("k1"));
         assert!(store4.contains("k2"));
         assert!(store4.contains("k3"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_saved_vault_is_owner_only() {
+        use std::os::unix::fs::MetadataExt;
+
+        let temp_dir = tempdir().unwrap();
+        let vault_path = temp_dir.path().join("vault.toml");
+
+        let mut store = SecretStore::open(&vault_path, "pwd").unwrap();
+        store.set("k", "v", &[]).unwrap();
+        store.save().unwrap();
+
+        let mode = std::fs::metadata(&vault_path).unwrap().mode() & 0o777;
+        assert_eq!(mode, 0o600, "vault file mode was {mode:o}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_save_does_not_change_mode_through_symlink() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let temp_dir = tempdir().unwrap();
+        let target_path = temp_dir.path().join("target.toml");
+        let link_path = temp_dir.path().join("vault.toml");
+        std::os::unix::fs::symlink(&target_path, &link_path).unwrap();
+
+        let mut store = SecretStore::open(&link_path, "pwd").unwrap();
+        store.set("k", "v", &[]).unwrap();
+        store.save().unwrap();
+
+        // Pretend the vault file was created by an older, unhardened build.
+        std::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        store.save().unwrap();
+
+        // The vault bytes are written through the link, but the mode of the file
+        // the link points at is left exactly as it was.
+        let mode = std::fs::symlink_metadata(&target_path).unwrap().mode() & 0o777;
+        assert_eq!(mode, 0o644, "symlink target mode was {mode:o}");
     }
 }
