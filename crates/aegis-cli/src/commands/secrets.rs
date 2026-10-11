@@ -411,12 +411,12 @@ mod tests {
     fn value_file_path_reads_file_and_trims_newline() {
         let v = resolve_secret_value(
             None,
-            Some("/tmp/secret".into()),
+            Some("/fixture/secret-file".into()),
             Some("env-value".into()),
             false,
             stdin_not_read, // a real path must not touch stdin
             |p| {
-                assert_eq!(p, "/tmp/secret");
+                assert_eq!(p, "/fixture/secret-file");
                 Ok("file-value\n".into())
             },
             prompt_not_called,
