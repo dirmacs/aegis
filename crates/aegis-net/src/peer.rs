@@ -8,20 +8,37 @@ use anyhow::{Result, bail};
 use crate::ca::{CertificateAuthority, NodeCertificate, NodeKeypair};
 use crate::config::{NetworkManifest, PeerConfig};
 
+/// Peer identity and configuration for an [`add_peer`] call.
+///
+/// Bundled so the call site names each field instead of passing nine
+/// positional arguments of mostly distinct types.
+pub struct AddPeerSpec {
+    pub name: String,
+    pub ip: IpAddr,
+    pub groups: Vec<String>,
+    pub endpoint: Option<String>,
+    pub lighthouse: bool,
+    pub cert_duration_days: u32,
+}
+
 /// Add a new peer to the network manifest and sign its certificate.
 pub fn add_peer(
     manifest: &mut NetworkManifest,
     ca: &CertificateAuthority,
-    name: &str,
-    ip: IpAddr,
-    groups: Vec<String>,
-    endpoint: Option<String>,
-    lighthouse: bool,
-    cert_duration_days: u32,
     config_dir: &Path,
+    peer: AddPeerSpec,
 ) -> Result<NodeCertificate> {
+    let AddPeerSpec {
+        name,
+        ip,
+        groups,
+        endpoint,
+        lighthouse,
+        cert_duration_days,
+    } = peer;
+
     // Check for duplicate name
-    if manifest.peers.contains_key(name) {
+    if manifest.peers.contains_key(&name) {
         bail!("peer '{}' already exists", name);
     }
 
@@ -35,7 +52,8 @@ pub fn add_peer(
         if !manifest.network.cidr.contains(&v4) {
             bail!(
                 "IP {} is not within network CIDR {}",
-                ip, manifest.network.cidr
+                ip,
+                manifest.network.cidr
             );
         }
     }
@@ -45,7 +63,7 @@ pub fn add_peer(
 
     // Sign certificate
     let cert = ca.sign_node(
-        name,
+        &name,
         &ip.to_string(),
         &groups,
         &node_verifying_key.to_bytes(),
@@ -53,13 +71,13 @@ pub fn add_peer(
     )?;
 
     // Save node key and cert
-    let peer_dir = config_dir.join("peers").join(name);
-    NodeKeypair::save_key(&node_signing_key, &peer_dir, name)?;
+    let peer_dir = config_dir.join("peers").join(&name);
+    NodeKeypair::save_key(&node_signing_key, &peer_dir, &name)?;
     cert.save(&peer_dir)?;
 
     // Add to manifest
     manifest.peers.insert(
-        name.to_string(),
+        name.clone(),
         PeerConfig {
             ip,
             groups,
@@ -148,13 +166,16 @@ cidr = "10.42.0.0/24"
     #[test]
     fn next_ip_with_peers() {
         let mut manifest = test_manifest();
-        manifest.peers.insert("node1".to_string(), PeerConfig {
-            ip: IpAddr::V4(Ipv4Addr::new(10, 42, 0, 1)),
-            groups: vec![],
-            endpoint: None,
-            lighthouse: false,
-            cert_duration: None,
-        });
+        manifest.peers.insert(
+            "node1".to_string(),
+            PeerConfig {
+                ip: IpAddr::V4(Ipv4Addr::new(10, 42, 0, 1)),
+                groups: vec![],
+                endpoint: None,
+                lighthouse: false,
+                cert_duration: None,
+            },
+        );
         let ip = next_available_ip(&manifest).unwrap();
         assert_eq!(ip, IpAddr::V4(Ipv4Addr::new(10, 42, 0, 2)));
     }

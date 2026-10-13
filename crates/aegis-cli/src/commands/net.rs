@@ -146,10 +146,16 @@ async fn init(args: NetInitArgs, ctx: &Context) -> Result<()> {
     let ca = CertificateAuthority::generate(&args.name, args.ca_duration)?;
     let ca_dir = config_dir.join("ca");
     ca.save(&ca_dir)?;
-    println!("  {} CA generated (fingerprint: {})", green.apply_to("✓"), &ca.ca_cert.fingerprint[..16]);
+    println!(
+        "  {} CA generated (fingerprint: {})",
+        green.apply_to("✓"),
+        &ca.ca_cert.fingerprint[..16]
+    );
 
     // Create initial manifest
-    let cidr: ipnet::Ipv4Net = args.cidr.parse()
+    let cidr: ipnet::Ipv4Net = args
+        .cidr
+        .parse()
         .map_err(|e| anyhow::anyhow!("invalid CIDR: {e}"))?;
 
     let manifest = NetworkManifest {
@@ -168,12 +174,23 @@ async fn init(args: NetInitArgs, ctx: &Context) -> Result<()> {
 
     let manifest_path = PathBuf::from("aegis-net.toml");
     manifest.save(&manifest_path)?;
-    println!("  {} Manifest created: {}", green.apply_to("✓"), manifest_path.display());
-    println!("  {} Network: {} ({})", green.apply_to("✓"), args.name, args.cidr);
+    println!(
+        "  {} Manifest created: {}",
+        green.apply_to("✓"),
+        manifest_path.display()
+    );
+    println!(
+        "  {} Network: {} ({})",
+        green.apply_to("✓"),
+        args.name,
+        args.cidr
+    );
 
     println!();
     println!("Next steps:");
-    println!("  aegis net add-peer vps --ip 10.42.0.1 --groups servers --lighthouse --endpoint YOUR_IP:51820");
+    println!(
+        "  aegis net add-peer vps --ip 10.42.0.1 --groups servers --lighthouse --endpoint YOUR_IP:51820"
+    );
     println!("  aegis net add-peer laptop --groups admin,dev");
     println!("  aegis net generate");
 
@@ -194,22 +211,53 @@ async fn net_status(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
     println!();
 
     // CA status
-    let ca_icon = if st.ca_valid { green.apply_to("✓") } else { red.apply_to("✗") };
+    let ca_icon = if st.ca_valid {
+        green.apply_to("✓")
+    } else {
+        red.apply_to("✗")
+    };
     let ca_info = st.ca_expires.as_deref().unwrap_or("not found");
     println!("  {ca_icon} CA: expires {ca_info}");
 
     // WireGuard
-    let wg_icon = if st.wg_available { green.apply_to("✓") } else { red.apply_to("✗") };
-    println!("  {wg_icon} WireGuard: {}", if st.wg_available { "available" } else { "not found" });
+    let wg_icon = if st.wg_available {
+        green.apply_to("✓")
+    } else {
+        red.apply_to("✗")
+    };
+    println!(
+        "  {wg_icon} WireGuard: {}",
+        if st.wg_available {
+            "available"
+        } else {
+            "not found"
+        }
+    );
 
-    let iface_icon = if st.wg_interface_up { green.apply_to("✓") } else { dim.apply_to("○") };
-    println!("  {iface_icon} Interface: {}", if st.wg_interface_up { "up" } else { "down" });
+    let iface_icon = if st.wg_interface_up {
+        green.apply_to("✓")
+    } else {
+        dim.apply_to("○")
+    };
+    println!(
+        "  {iface_icon} Interface: {}",
+        if st.wg_interface_up { "up" } else { "down" }
+    );
 
     // Peers
-    println!("  {} Peers: {}/{} have certificates", green.apply_to("✓"), st.peers_with_certs, st.total_peers);
+    println!(
+        "  {} Peers: {}/{} have certificates",
+        green.apply_to("✓"),
+        st.peers_with_certs,
+        st.total_peers
+    );
 
     if !st.expired_certs.is_empty() {
-        println!("  {} Expired certs: {}", red.apply_to("!"), st.expired_certs.join(", "));
+        println!(
+            "  {} Expired certs: {}",
+            red.apply_to("!"),
+            st.expired_certs.join(", ")
+        );
     }
 
     Ok(())
@@ -228,7 +276,10 @@ async fn add_peer(args: AddPeerArgs, ctx: &Context) -> Result<()> {
     };
 
     if ctx.dry_run {
-        println!("  [dry-run] Would add peer '{}' ({}) groups={:?}", args.name, ip, args.groups);
+        println!(
+            "  [dry-run] Would add peer '{}' ({}) groups={:?}",
+            args.name, ip, args.groups
+        );
         return Ok(());
     }
 
@@ -242,18 +293,25 @@ async fn add_peer(args: AddPeerArgs, ctx: &Context) -> Result<()> {
     let cert = peer::add_peer(
         &mut manifest,
         &ca,
-        &args.name,
-        ip,
-        args.groups.clone(),
-        args.endpoint.clone(),
-        args.lighthouse,
-        args.cert_duration,
         &config_dir,
+        peer::AddPeerSpec {
+            name: args.name.clone(),
+            ip,
+            groups: args.groups.clone(),
+            endpoint: args.endpoint.clone(),
+            lighthouse: args.lighthouse,
+            cert_duration_days: args.cert_duration,
+        },
     )?;
 
     manifest.save(&manifest_path)?;
 
-    println!("  {} Added peer '{}' ({})", green.apply_to("✓"), args.name, ip);
+    println!(
+        "  {} Added peer '{}' ({})",
+        green.apply_to("✓"),
+        args.name,
+        ip
+    );
     println!("    Groups: {:?}", args.groups);
     if args.lighthouse {
         println!("    Role: lighthouse");
@@ -277,7 +335,12 @@ async fn remove_peer(args: RemovePeerArgs, ctx: &Context) -> Result<()> {
     let removed = peer::remove_peer(&mut manifest, &args.name)?;
     manifest.save(&manifest_path)?;
 
-    println!("  {} Removed peer '{}' ({})", green.apply_to("✓"), args.name, removed.ip);
+    println!(
+        "  {} Removed peer '{}' ({})",
+        green.apply_to("✓"),
+        args.name,
+        removed.ip
+    );
     Ok(())
 }
 
@@ -293,7 +356,13 @@ async fn list_peers(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
         return Ok(());
     }
 
-    println!("{}", bold.apply_to(format!("Peers in {} ({}):", manifest.network.name, manifest.network.cidr)));
+    println!(
+        "{}",
+        bold.apply_to(format!(
+            "Peers in {} ({}):",
+            manifest.network.name, manifest.network.cidr
+        ))
+    );
     println!();
 
     for p in &peers {
@@ -314,18 +383,26 @@ async fn generate(args: NetGenerateArgs, ctx: &Context) -> Result<()> {
     // Load all WireGuard public keys
     let mut pub_keys: HashMap<String, String> = HashMap::new();
     for name in manifest.peers.keys() {
-        let pub_path = config_dir.join("peers").join(name).join(format!("{}.wg.pub", name));
+        let pub_path = config_dir
+            .join("peers")
+            .join(name)
+            .join(format!("{}.wg.pub", name));
         if let Ok(key) = WgKeypair::load_public(&pub_path) {
-            pub_keys.insert(name.clone(), base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                key.as_bytes(),
-            ));
+            pub_keys.insert(
+                name.clone(),
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key.as_bytes()),
+            );
         } else {
-            tracing::warn!("no WG public key for peer '{}' at {}", name, pub_path.display());
+            tracing::warn!(
+                "no WG public key for peer '{}' at {}",
+                name,
+                pub_path.display()
+            );
         }
     }
 
-    let output_dir = args.output
+    let output_dir = args
+        .output
         .map(PathBuf::from)
         .unwrap_or_else(|| config_dir.join("wg-configs"));
 
@@ -339,7 +416,10 @@ async fn generate(args: NetGenerateArgs, ctx: &Context) -> Result<()> {
     };
 
     for name in peers_to_generate {
-        let priv_path = config_dir.join("peers").join(name).join(format!("{}.wg.key", name));
+        let priv_path = config_dir
+            .join("peers")
+            .join(name)
+            .join(format!("{}.wg.key", name));
         let priv_key = match std::fs::read_to_string(&priv_path) {
             Ok(k) => k.trim().to_string(),
             Err(_) => {
@@ -367,7 +447,8 @@ async fn sign(args: SignArgs, ctx: &Context) -> Result<()> {
     let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
     let config_dir = &manifest.network.config_dir;
 
-    let peer = manifest.peer(&args.name)
+    let peer = manifest
+        .peer(&args.name)
         .ok_or_else(|| anyhow::anyhow!("peer '{}' not found", args.name))?;
 
     if ctx.dry_run {
@@ -391,7 +472,12 @@ async fn sign(args: SignArgs, ctx: &Context) -> Result<()> {
     )?;
     cert.save(&peer_dir)?;
 
-    println!("  {} Re-signed cert for '{}' (expires {})", green.apply_to("✓"), args.name, cert.expires_at.format("%Y-%m-%d"));
+    println!(
+        "  {} Re-signed cert for '{}' (expires {})",
+        green.apply_to("✓"),
+        args.name,
+        cert.expires_at.format("%Y-%m-%d")
+    );
 
     Ok(())
 }

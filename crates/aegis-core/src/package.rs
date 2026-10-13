@@ -34,10 +34,11 @@ pub struct PackageSpec {
     pub scoop_bucket: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum InstallMethod {
     /// Resolve at runtime — heuristic → LLM → fallback
+    #[default]
     Auto,
     Cargo,
     Apt,
@@ -45,12 +46,6 @@ pub enum InstallMethod {
     Winget,
     Script,
     Mise,
-}
-
-impl Default for InstallMethod {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 #[derive(Debug)]
@@ -65,11 +60,7 @@ impl PackageSpec {
     /// Check if this package is installed and get its version.
     pub fn check_status(&self) -> PackageStatus {
         let installed = self.is_installed();
-        let version = if installed {
-            self.get_version()
-        } else {
-            None
-        };
+        let version = if installed { self.get_version() } else { None };
         let version_ok = match (&version, &self.expected_version) {
             (Some(v), Some(expected)) => v.contains(expected),
             (Some(_), None) => true,
@@ -117,8 +108,12 @@ impl PackageSpec {
             InstallMethod::Apt => self.install_apt(dry_run),
             InstallMethod::Scoop => self.install_scoop(dry_run),
             InstallMethod::Winget => self.install_winget(dry_run),
-            InstallMethod::Script => bail!("script-based install not yet implemented for {}", self.name),
-            InstallMethod::Mise => bail!("mise-based install not yet implemented for {}", self.name),
+            InstallMethod::Script => {
+                bail!("script-based install not yet implemented for {}", self.name)
+            }
+            InstallMethod::Mise => {
+                bail!("mise-based install not yet implemented for {}", self.name)
+            }
         }
     }
 
@@ -128,11 +123,14 @@ impl PackageSpec {
         let mut cache = ResolveCache::load();
         let desc = self.description.as_deref().unwrap_or(&self.name);
 
-        let resolved = resolver::resolve(&self.name, desc, &mut cache)
-            .ok_or_else(|| anyhow::anyhow!(
+        let resolved = resolver::resolve(&self.name, desc, &mut cache).ok_or_else(|| {
+            anyhow::anyhow!(
                 "could not resolve install method for '{}' on {}/{}",
-                self.name, std::env::consts::OS, std::env::consts::ARCH,
-            ))?;
+                self.name,
+                std::env::consts::OS,
+                std::env::consts::ARCH,
+            )
+        })?;
 
         let _ = cache.save();
 
@@ -150,11 +148,14 @@ impl PackageSpec {
             }
             // Agentic retry: feed the error back to the LLM for an alternative
             let error_msg = format!("{e}");
-            info!("first attempt failed for '{}', asking agent for alternative...", self.name);
+            info!(
+                "first attempt failed for '{}', asking agent for alternative...",
+                self.name
+            );
 
-            if let Some(retry) = resolver::resolve_with_retry(
-                &self.name, desc, &mut cache, &error_msg,
-            ) {
+            if let Some(retry) =
+                resolver::resolve_with_retry(&self.name, desc, &mut cache, &error_msg)
+            {
                 info!(
                     "retry resolved '{}' → {:?} ({})",
                     self.name, retry.method, retry.manager_package
@@ -232,7 +233,10 @@ impl PackageSpec {
             InstallMethod::Script => {
                 bail!("script method but no script provided for {}", self.name)
             }
-            _ => bail!("resolved method {:?} not supported for auto-install", resolved.method),
+            _ => bail!(
+                "resolved method {:?} not supported for auto-install",
+                resolved.method
+            ),
         }
     }
 
@@ -259,7 +263,10 @@ impl PackageSpec {
             .with_context(|| format!("running cargo install {crate_name}"))?;
 
         if !status.success() {
-            bail!("cargo install {crate_name} failed with exit code {:?}", status.code());
+            bail!(
+                "cargo install {crate_name} failed with exit code {:?}",
+                status.code()
+            );
         }
         Ok(())
     }
@@ -322,7 +329,8 @@ impl PackageSpec {
         info!("installing {} via winget", id);
         let status = Command::new("winget")
             .args([
-                "install", id,
+                "install",
+                id,
                 "--accept-package-agreements",
                 "--accept-source-agreements",
             ])

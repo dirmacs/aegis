@@ -105,17 +105,12 @@ pub struct FirewallRule {
     pub action: FirewallAction,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FirewallAction {
     Allow,
+    #[default]
     Deny,
-}
-
-impl Default for FirewallAction {
-    fn default() -> Self {
-        Self::Deny
-    }
 }
 
 fn default_config_dir() -> PathBuf {
@@ -149,19 +144,17 @@ fn default_allow() -> FirewallAction {
 impl NetworkManifest {
     /// Load from a TOML file.
     pub fn load(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let manifest: Self = toml::from_str(&content)
-            .with_context(|| format!("parsing {}", path.display()))?;
+        let content =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let manifest: Self =
+            toml::from_str(&content).with_context(|| format!("parsing {}", path.display()))?;
         Ok(manifest)
     }
 
     /// Save to a TOML file.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)
-            .context("serializing network manifest")?;
-        std::fs::write(path, content)
-            .with_context(|| format!("writing {}", path.display()))?;
+        let content = toml::to_string_pretty(self).context("serializing network manifest")?;
+        std::fs::write(path, content).with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
 
