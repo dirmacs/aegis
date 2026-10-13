@@ -12,6 +12,7 @@
 
 pub mod ca;
 pub mod config;
+pub mod distribute;
 pub mod firewall;
 pub mod peer;
 pub mod status;
