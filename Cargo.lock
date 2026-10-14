@@ -117,8 +117,10 @@ dependencies = [
 name = "aegis-serve"
 version = "0.1.0"
 dependencies = [
+ "aegis-net",
  "aegis-secrets",
  "anyhow",
+ "chrono",
  "http-body",
  "http-body-util",
  "hyper",

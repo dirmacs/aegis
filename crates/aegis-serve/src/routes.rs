@@ -24,7 +24,7 @@ use hyper::{Method, Request, Response, StatusCode};
 use tokio::net::TcpListener;
 use tracing::{debug, info, warn};
 
-use crate::auth::is_authorized;
+use crate::auth::is_request_authorized;
 use crate::state::AppState;
 
 /// Unauthenticated liveness endpoint.
@@ -68,7 +68,13 @@ where
         return text(StatusCode::NOT_FOUND, "not found");
     }
 
-    if !is_authorized(state.tokens(), req.headers()) {
+    if !is_request_authorized(
+        state.tokens(),
+        state.ca_cert(),
+        req.headers(),
+        method.as_str(),
+        &path,
+    ) {
         warn!(%method, %path, status = 401, "unauthorized request");
         return text(StatusCode::UNAUTHORIZED, "unauthorized");
     }
@@ -651,5 +657,129 @@ mod tests {
         );
         // Keys are metadata and may be logged; the value is not.
         assert!(logs.contains(KEY) || logs.contains("api-key") || logs.contains("secret"));
+    }
+
+    #[tokio::test]
+    async fn ca_cert_enforcement_requires_valid_ca_signed_node_cert_and_verifies_proof() {
+        use crate::auth::{HEADER_AEGIS_CERT, HEADER_AEGIS_SIGNATURE, HEADER_AEGIS_TIMESTAMP};
+        use aegis_net::ca::{CertificateAuthority, NodeCertificate, NodeKeypair};
+
+        let ca = CertificateAuthority::generate("aegis-test-ca", 365).expect("ca");
+        let (node_signing, node_verifying) = NodeKeypair::generate();
+        let node_cert = ca
+            .sign_node(
+                "vps",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_verifying.to_bytes(),
+                365,
+            )
+            .expect("node cert");
+
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("vault.json");
+        let state = Arc::new(
+            AppState::with_vault_and_ca(
+                &path,
+                "master-pw",
+                Config::from_parts("ignored", "master-pw", "eruka:s3cret-token", "127.0.0.1:1")
+                    .unwrap()
+                    .tokens,
+                Some(ca.ca_cert.clone()),
+            )
+            .expect("vault with ca"),
+        );
+        {
+            let mut vault = state.vault();
+            vault.set(KEY, VALUE, &["eruka"]).expect("seed");
+            vault.save().expect("save");
+        }
+
+        let secret_path = format!("{SECRET_PREFIX}{KEY}");
+
+        // 1. Valid bearer token WITHOUT X-Aegis-Cert is rejected when CA is configured.
+        let (status, _) = status_of(auth_request(Method::GET, &secret_path), state.clone()).await;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "missing X-Aegis-Cert must be 401 when CA is configured"
+        );
+
+        // 2. Valid bearer token + valid CA-signed X-Aegis-Cert succeeds.
+        let encoded_cert = node_cert.encode_header().expect("encode cert");
+        let mut req = auth_request(Method::GET, &secret_path);
+        req.headers_mut().insert(
+            HEADER_AEGIS_CERT,
+            hyper::http::HeaderValue::from_str(&encoded_cert).unwrap(),
+        );
+        let (status, body) = status_of(req, state.clone()).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, VALUE);
+
+        // 3. Node cert signed by a DIFFERENT CA is rejected.
+        let rogue_ca = CertificateAuthority::generate("rogue-ca", 365).expect("rogue ca");
+        let rogue_cert = rogue_ca
+            .sign_node(
+                "vps",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_verifying.to_bytes(),
+                365,
+            )
+            .expect("rogue cert");
+        let mut rogue_req = auth_request(Method::GET, &secret_path);
+        rogue_req.headers_mut().insert(
+            HEADER_AEGIS_CERT,
+            hyper::http::HeaderValue::from_str(&rogue_cert.encode_header().unwrap()).unwrap(),
+        );
+        let (status, _) = status_of(rogue_req, state.clone()).await;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "cert signed by untrusted CA must be 401"
+        );
+
+        // 4. Valid bearer + valid cert + valid Ed25519 request proof succeeds.
+        let ts = chrono::Utc::now().timestamp();
+        let sig = NodeCertificate::sign_request(&node_signing, ts, "GET", &secret_path);
+        let mut signed_req = auth_request(Method::GET, &secret_path);
+        signed_req.headers_mut().insert(
+            HEADER_AEGIS_CERT,
+            hyper::http::HeaderValue::from_str(&encoded_cert).unwrap(),
+        );
+        signed_req.headers_mut().insert(
+            HEADER_AEGIS_TIMESTAMP,
+            hyper::http::HeaderValue::from_str(&ts.to_string()).unwrap(),
+        );
+        signed_req.headers_mut().insert(
+            HEADER_AEGIS_SIGNATURE,
+            hyper::http::HeaderValue::from_str(&sig).unwrap(),
+        );
+        let (status, body) = status_of(signed_req, state.clone()).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, VALUE);
+
+        // 5. Tampered request proof (signed for a different path) is rejected.
+        let bad_sig =
+            NodeCertificate::sign_request(&node_signing, ts, "GET", "/api/v1/secrets/other");
+        let mut bad_signed_req = auth_request(Method::GET, &secret_path);
+        bad_signed_req.headers_mut().insert(
+            HEADER_AEGIS_CERT,
+            hyper::http::HeaderValue::from_str(&encoded_cert).unwrap(),
+        );
+        bad_signed_req.headers_mut().insert(
+            HEADER_AEGIS_TIMESTAMP,
+            hyper::http::HeaderValue::from_str(&ts.to_string()).unwrap(),
+        );
+        bad_signed_req.headers_mut().insert(
+            HEADER_AEGIS_SIGNATURE,
+            hyper::http::HeaderValue::from_str(&bad_sig).unwrap(),
+        );
+        let (status, _) = status_of(bad_signed_req, state).await;
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "mismatched request proof must be 401"
+        );
     }
 }

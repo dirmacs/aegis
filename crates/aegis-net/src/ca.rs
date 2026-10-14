@@ -132,26 +132,7 @@ impl CertificateAuthority {
 
     /// Verify a node certificate against this CA.
     pub fn verify(&self, cert: &NodeCertificate) -> Result<()> {
-        if cert.ca_fingerprint != self.ca_cert.fingerprint {
-            bail!("certificate was not signed by this CA");
-        }
-
-        if Utc::now() > cert.expires_at {
-            bail!("certificate has expired ({})", cert.expires_at);
-        }
-
-        let payload = cert.signing_payload()?;
-        let sig_bytes: [u8; 64] = cert
-            .signature
-            .clone()
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("invalid signature length"))?;
-        let signature = Signature::from_bytes(&sig_bytes);
-        self.verifying_key
-            .verify(&payload, &signature)
-            .map_err(|e| anyhow::anyhow!("signature verification failed: {e}"))?;
-
-        Ok(())
+        self.ca_cert.verify(cert)
     }
 
     /// Save CA to disk (key + cert as separate files).
@@ -211,6 +192,65 @@ impl CertificateAuthority {
     }
 }
 
+impl CaCertificate {
+    /// Load a CA certificate from disk (`ca.cert`), validating its public key,
+    /// fingerprint, and expiration without requiring the CA private key.
+    pub fn load(path: &Path) -> Result<Self> {
+        let cert_json =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let ca_cert: Self = serde_json::from_str(&cert_json)
+            .with_context(|| format!("parsing {}", path.display()))?;
+        ca_cert.validate()?;
+        Ok(ca_cert)
+    }
+
+    /// Validate that the CA certificate itself has a well-formed Ed25519
+    /// verifying key, a matching fingerprint, and has not expired.
+    pub fn validate(&self) -> Result<VerifyingKey> {
+        let key_bytes: [u8; 32] = self
+            .public_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid CA public key length"))?;
+        let verifying_key = VerifyingKey::from_bytes(&key_bytes)
+            .map_err(|e| anyhow::anyhow!("invalid CA Ed25519 public key: {e}"))?;
+        let expected_fp = CertificateAuthority::compute_fingerprint(&self.public_key);
+        if self.fingerprint != expected_fp {
+            bail!("CA certificate fingerprint mismatch");
+        }
+        if Utc::now() > self.expires_at {
+            bail!("CA certificate has expired ({})", self.expires_at);
+        }
+        Ok(verifying_key)
+    }
+
+    /// Verify a node certificate against this CA certificate.
+    pub fn verify(&self, cert: &NodeCertificate) -> Result<()> {
+        let verifying_key = self.validate()?;
+
+        if cert.ca_fingerprint != self.fingerprint {
+            bail!("certificate was not signed by this CA");
+        }
+
+        if Utc::now() > cert.expires_at {
+            bail!("certificate has expired ({})", cert.expires_at);
+        }
+
+        let payload = cert.signing_payload()?;
+        let sig_bytes: [u8; 64] = cert
+            .signature
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid signature length"))?;
+        let signature = Signature::from_bytes(&sig_bytes);
+        verifying_key
+            .verify(&payload, &signature)
+            .map_err(|e| anyhow::anyhow!("signature verification failed: {e}"))?;
+
+        Ok(())
+    }
+}
+
 impl NodeCertificate {
     /// Compute the payload that gets signed (deterministic serialization).
     pub fn signing_payload(&self) -> Result<Vec<u8>> {
@@ -248,6 +288,79 @@ impl NodeCertificate {
     /// Check if the certificate is currently valid (not expired).
     pub fn is_valid(&self) -> bool {
         Utc::now() < self.expires_at
+    }
+
+    /// Encode this node certificate as standard base64 JSON suitable for an
+    /// HTTP header (`X-Aegis-Cert`).
+    pub fn encode_header(&self) -> Result<String> {
+        let json = serde_json::to_vec(self)?;
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            json,
+        ))
+    }
+
+    /// Decode a node certificate from an `X-Aegis-Cert` header value (either
+    /// base64-encoded JSON or raw JSON).
+    pub fn decode_header(raw: &str) -> Result<Self> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            bail!("empty node certificate header");
+        }
+        let bytes = if trimmed.starts_with('{') {
+            trimmed.as_bytes().to_vec()
+        } else {
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, trimmed)
+                .context("decoding base64 node certificate")?
+        };
+        let cert: Self = serde_json::from_slice(&bytes).context("parsing node certificate JSON")?;
+        Ok(cert)
+    }
+
+    /// Sign an HTTP request proof `(timestamp, method, path)` with a node's
+    /// Ed25519 signing key, returning standard base64.
+    pub fn sign_request(
+        signing_key: &SigningKey,
+        timestamp: i64,
+        method: &str,
+        path: &str,
+    ) -> String {
+        let payload = format!("{timestamp}\n{method}\n{path}");
+        let sig = signing_key.sign(payload.as_bytes());
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, sig.to_bytes())
+    }
+
+    /// Verify an HTTP request proof signature against this certificate's
+    /// Ed25519 public key.
+    pub fn verify_request(
+        &self,
+        timestamp: i64,
+        method: &str,
+        path: &str,
+        signature_b64: &str,
+    ) -> Result<()> {
+        let key_bytes: [u8; 32] = self
+            .public_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid node public key length"))?;
+        let verifying_key = VerifyingKey::from_bytes(&key_bytes)
+            .map_err(|e| anyhow::anyhow!("invalid node Ed25519 public key: {e}"))?;
+        let sig_vec = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            signature_b64.trim(),
+        )
+        .context("decoding base64 request signature")?;
+        let sig_bytes: [u8; 64] = sig_vec
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid request signature length"))?;
+        let signature = Signature::from_bytes(&sig_bytes);
+        let payload = format!("{timestamp}\n{method}\n{path}");
+        verifying_key
+            .verify(payload.as_bytes(), &signature)
+            .map_err(|e| anyhow::anyhow!("request signature verification failed: {e}"))?;
+        Ok(())
     }
 }
 

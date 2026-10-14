@@ -9,7 +9,21 @@
 
 use std::collections::HashMap;
 
+use aegis_net::ca::{CaCertificate, NodeCertificate};
 use hyper::http::HeaderMap;
+
+/// HTTP header carrying a base64-encoded (or raw JSON) `aegis-net`
+/// [`NodeCertificate`] signed by the Ed25519 CA.
+pub const HEADER_AEGIS_CERT: &str = "x-aegis-cert";
+/// Optional HTTP header carrying a base64-encoded Ed25519 signature over
+/// `"{timestamp}\n{method}\n{path}"` using the node's private key.
+pub const HEADER_AEGIS_SIGNATURE: &str = "x-aegis-signature";
+/// Optional HTTP header carrying the Unix timestamp (seconds) paired with
+/// [`HEADER_AEGIS_SIGNATURE`].
+pub const HEADER_AEGIS_TIMESTAMP: &str = "x-aegis-timestamp";
+/// Maximum clock skew (in seconds) tolerated when verifying a signed request
+/// proof.
+pub const MAX_TIMESTAMP_SKEW_SECS: i64 = 300;
 
 /// Parses `agent:token,agent:token` into a map keyed by agent name.
 ///
@@ -62,6 +76,74 @@ pub fn is_authorized(tokens: &HashMap<String, String>, headers: &HeaderMap) -> b
     tokens
         .values()
         .any(|configured| constant_time_eq(configured.as_bytes(), provided.as_bytes()))
+}
+
+/// Verifies request authentication against both the configured bearer tokens
+/// and, when an `aegis-net` [`CaCertificate`] is configured, the client's
+/// Ed25519 [`NodeCertificate`] (and optional request-signature proof).
+///
+/// Rules when `ca_cert` is `Some(ca)`:
+/// 1. `X-Aegis-Cert` must be present, parse as a [`NodeCertificate`], and pass
+///    [`CaCertificate::verify`] (Ed25519 signature by the CA, matching CA
+///    fingerprint, and `expires_at` in the future).
+/// 2. If either `X-Aegis-Signature` or `X-Aegis-Timestamp` is present, both
+///    must be present, the timestamp must be within
+///    [`MAX_TIMESTAMP_SKEW_SECS`] of current UTC time, and the Ed25519
+///    signature over `"{timestamp}\n{method}\n{path}"` must verify against the
+///    node certificate's `public_key`.
+pub fn is_request_authorized(
+    tokens: &HashMap<String, String>,
+    ca_cert: Option<&CaCertificate>,
+    headers: &HeaderMap,
+    method: &str,
+    path: &str,
+) -> bool {
+    if !is_authorized(tokens, headers) {
+        return false;
+    }
+    let Some(ca) = ca_cert else {
+        return true;
+    };
+    verify_node_cert_headers(ca, headers, method, path)
+}
+
+fn verify_node_cert_headers(
+    ca: &CaCertificate,
+    headers: &HeaderMap,
+    method: &str,
+    path: &str,
+) -> bool {
+    let Some(raw_cert) = headers.get(HEADER_AEGIS_CERT).and_then(|v| v.to_str().ok()) else {
+        return false;
+    };
+    let Ok(node_cert) = NodeCertificate::decode_header(raw_cert) else {
+        return false;
+    };
+    if ca.verify(&node_cert).is_err() {
+        return false;
+    }
+
+    let sig_header = headers.get(HEADER_AEGIS_SIGNATURE);
+    let ts_header = headers.get(HEADER_AEGIS_TIMESTAMP);
+    match (sig_header, ts_header) {
+        (None, None) => true,
+        (Some(sig_val), Some(ts_val)) => {
+            let (Ok(sig_str), Ok(ts_str)) = (sig_val.to_str(), ts_val.to_str()) else {
+                return false;
+            };
+            let Ok(timestamp) = ts_str.trim().parse::<i64>() else {
+                return false;
+            };
+            let now = chrono::Utc::now().timestamp();
+            if (now - timestamp).abs() > MAX_TIMESTAMP_SKEW_SECS {
+                return false;
+            }
+            node_cert
+                .verify_request(timestamp, method, path, sig_str)
+                .is_ok()
+        }
+        _ => false,
+    }
 }
 
 /// Byte comparison that does not short-circuit on the first differing byte.
