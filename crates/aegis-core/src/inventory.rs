@@ -224,7 +224,6 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
         "nimakai",
         "pawan",
         "daedra",
-        "doltclaw",
         "thulp",
         "llama-server",
         "llama-cli",

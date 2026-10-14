@@ -86,8 +86,3 @@ volumes:
 networks:
   aegis-internal:
     internal: true
-    # Static subnet so agent clients can be configured against a stable
-    # address rather than a service name resolved at start time.
-    ipam:
-      config:
-        - subnet: 172.29.9.0/28

@@ -23,7 +23,7 @@ pub struct NetworkManifest {
 /// Core network settings.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NetworkConfig {
-    /// Human-readable network name (e.g., "dirmacs-mesh")
+    /// Human-readable network name (e.g., "example-mesh")
     pub name: String,
     /// Network CIDR (e.g., "10.42.0.0/24")
     pub cidr: Ipv4Net,
@@ -189,16 +189,16 @@ mod tests {
     fn parse_minimal_network_manifest() {
         let toml_str = r#"
 [network]
-name = "dirmacs-mesh"
+name = "example-mesh"
 cidr = "10.42.0.0/24"
 
-[peers.vps]
+[peers.lighthouse]
 ip = "10.42.0.1"
 groups = ["servers"]
 lighthouse = true
-endpoint = "217.216.78.38:51820"
+endpoint = "203.0.113.1:51820"
 
-[peers.baala-laptop]
+[peers.alice-laptop]
 ip = "10.42.0.2"
 groups = ["admin", "dev"]
 
@@ -214,17 +214,17 @@ groups = ["servers"]
 action = "allow"
 "#;
         let manifest: NetworkManifest = toml::from_str(toml_str).unwrap();
-        assert_eq!(manifest.network.name, "dirmacs-mesh");
+        assert_eq!(manifest.network.name, "example-mesh");
         assert_eq!(manifest.peers.len(), 2);
         assert_eq!(manifest.firewall.inbound.len(), 2);
 
         let (name, peer) = manifest.lighthouse_peer().unwrap();
-        assert_eq!(name, "vps");
+        assert_eq!(name, "lighthouse");
         assert!(peer.lighthouse);
 
         let admins = manifest.peers_in_group("admin");
         assert_eq!(admins.len(), 1);
-        assert_eq!(admins[0].0, "baala-laptop");
+        assert_eq!(admins[0].0, "alice-laptop");
     }
 
     #[test]

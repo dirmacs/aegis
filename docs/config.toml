@@ -1,6 +1,6 @@
 base_url = "https://dirmacs.github.io/aegis"
 title = "Aegis Documentation"
-description = "Aegis — dirmacs system configuration manager. Rust CLI for dotfiles, config management, and opencode generation."
+description = "Aegis — dirmacs system configuration manager. Rust CLI for dotfiles, config management, secrets, and overlay networking."
 compile_sass = true
 build_search_index = true
 generate_feeds = false

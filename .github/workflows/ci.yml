@@ -61,18 +61,10 @@ jobs:
   # to CC³+CC, so the complexity gate would measure nothing; that is why the
   # two live in one job.
   #
-  # Public repo, so the gate runs on the repo's existing convention,
-  # ubuntu-latest, like every other job in this file. (dirmacs private repos
-  # must use the self-hosted dirmacs-ci labels instead: they get zero-step
-  # admission refusal on GitHub-hosted runners.)
-  #
-  # Engine choice is MEASURED, not preferred. The ptrace engine is blocked on
-  # the fleet's self-hosted runners (sysbox-confined containers tarpaulin
-  # cannot ptrace: "ASLR disable failed: EPERM", measured on dirmacs/skywalkers
-  # run 38064108686). ubuntu-latest would permit ptrace, but the estate
-  # standardizes on the Llvm engine for consistency with every other repo's
-  # gate run — and Llvm (-Cinstrument-coverage + llvm-profdata) is the more
-  # accurate of the two. Hence the llvm-tools-preview component above.
+  # Uses the Llvm coverage engine (-Cinstrument-coverage + llvm-profdata) for
+  # accurate source-based coverage and compatibility with containerized CI
+  # environments where ptrace is restricted. Hence the llvm-tools-preview
+  # component below.
   #
   # Tool versions are pinned and asserted (tarpaulin 0.37.5, cargo-crap 0.6.1,
   # crates.io max_stable_version at authoring) so two runs cannot disagree
@@ -168,8 +160,8 @@ jobs:
               echo "Line coverage: no lcov.info (the coverage run did not complete)"
             fi
             if [ -f crap.json ]; then
-              # Shell-only parse: the fleet runner containers carry no python3,
-              # and a crashing summary must not redden a gate that passed.
+              # Shell-only parse so a missing python3 binary cannot fail a
+              # gate that already passed.
               vals=$(tr -d ' \n' < crap.json | grep -o '"crap":[0-9.]*' | cut -d: -f2)
               if [ -n "$vals" ]; then
                 n=$(printf '%s\n' "$vals" | grep -c .)
