@@ -20,6 +20,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
+use aegis_net::ca::CaCertificate;
 use aegis_secrets::store::SecretStore;
 use anyhow::{Context, Result};
 use thiserror::Error;
@@ -32,6 +33,10 @@ pub const ENV_VAULT_PASSWORD: &str = "AEGIS_VAULT_PASSWORD";
 pub const ENV_TOKENS: &str = "AEGIS_TOKENS";
 /// Environment variable naming the bind address. Defaults to [`DEFAULT_BIND_ADDR`].
 pub const ENV_BIND: &str = "AEGIS_BIND";
+/// Optional environment variable naming the `aegis-net` Ed25519 CA certificate
+/// (`ca.cert`). When set, every `/api/v1/secrets*` request must also present a
+/// valid `X-Aegis-Cert` node certificate signed by this CA.
+pub const ENV_CA_CERT: &str = "AEGIS_CA_CERT";
 
 /// Vault path used when `AEGIS_VAULT_PATH` is unset (`/data/vault.json`).
 pub const DEFAULT_VAULT_PATH: &str = "/data/vault.json";
@@ -61,6 +66,8 @@ pub enum ConfigError {
     EmptyTokens,
     #[error("{ENV_TOKENS} contains no usable 'agent:token' pair")]
     NoUsableTokens,
+    #[error("{ENV_CA_CERT} is empty or whitespace-only")]
+    EmptyCaCertPath,
 }
 
 /// Validated startup configuration.
@@ -73,6 +80,7 @@ pub struct Config {
     vault_password: String,
     pub tokens: HashMap<String, String>,
     pub bind: String,
+    pub ca_cert_path: Option<PathBuf>,
 }
 
 impl fmt::Debug for Config {
@@ -85,6 +93,7 @@ impl fmt::Debug for Config {
                 &format_args!("{} agents (values redacted)", self.tokens.len()),
             )
             .field("bind", &self.bind)
+            .field("ca_cert_path", &self.ca_cert_path)
             .finish()
     }
 }
@@ -95,12 +104,31 @@ impl Config {
     /// This performs no I/O of its own beyond `std::env`, so a failure here
     /// happens before any socket exists.
     pub fn from_env() -> Result<Self, ConfigError> {
-        Self::from_env_values(
+        let mut config = Self::from_env_values(
             std::env::var(ENV_VAULT_PATH).ok(),
             std::env::var(ENV_VAULT_PASSWORD).ok(),
             std::env::var(ENV_TOKENS).ok(),
             std::env::var(ENV_BIND).ok(),
-        )
+        )?;
+        if let Ok(raw_ca) = std::env::var(ENV_CA_CERT) {
+            let trimmed = raw_ca.trim();
+            if trimmed.is_empty() {
+                return Err(ConfigError::EmptyCaCertPath);
+            }
+            config.ca_cert_path = Some(PathBuf::from(trimmed));
+        }
+        Ok(config)
+    }
+
+    /// Attach a CA certificate path to this configuration (fail-closed on empty
+    /// or whitespace-only path).
+    pub fn with_ca_cert_path(mut self, path: impl Into<PathBuf>) -> Result<Self, ConfigError> {
+        let path = path.into();
+        if path.as_os_str().is_empty() || path.to_string_lossy().trim().is_empty() {
+            return Err(ConfigError::EmptyCaCertPath);
+        }
+        self.ca_cert_path = Some(path);
+        Ok(self)
     }
 
     /// Same as [`Config::from_env`] but with values supplied directly.
@@ -148,6 +176,7 @@ impl Config {
             vault_password: vault_password.to_string(),
             tokens,
             bind: bind.into(),
+            ca_cert_path: None,
         })
     }
 
@@ -170,21 +199,29 @@ impl Config {
 pub struct AppState {
     vault: Mutex<SecretStore>,
     tokens: HashMap<String, String>,
+    ca_cert: Option<CaCertificate>,
 }
 
 impl AppState {
-    /// Opens (creating when absent) and unlocks the vault described by `config`.
+    /// Opens (creating when absent) and unlocks the vault described by `config`,
+    /// and loads the optional `aegis-net` CA certificate if configured.
     ///
     /// # Errors
     ///
-    /// Fails closed — with an error that names the vault path but never the
-    /// password — when the vault cannot be read or parsed, or when the supplied
-    /// password cannot decrypt the existing vault contents.
+    /// Fails closed — with an error that names the vault path or CA cert path
+    /// but never the password — when the vault cannot be read or parsed, when
+    /// the supplied password cannot decrypt the existing vault contents, or when
+    /// `ca_cert_path` is set but cannot be loaded or validated.
     pub fn new(config: &Config) -> Result<Self> {
-        Self::with_vault(
+        let ca_cert = match &config.ca_cert_path {
+            Some(path) => Some(CaCertificate::load(path)?),
+            None => None,
+        };
+        Self::with_vault_and_ca(
             &config.vault_path,
             config.vault_password(),
             config.tokens.clone(),
+            ca_cert,
         )
     }
 
@@ -194,16 +231,38 @@ impl AppState {
         vault_password: &str,
         tokens: HashMap<String, String>,
     ) -> Result<Self> {
+        Self::with_vault_and_ca(vault_path, vault_password, tokens, None)
+    }
+
+    /// [`AppState::with_vault`] plus an optional `aegis-net` [`CaCertificate`]
+    /// for Ed25519 node-certificate authentication.
+    pub fn with_vault_and_ca(
+        vault_path: &Path,
+        vault_password: &str,
+        tokens: HashMap<String, String>,
+        ca_cert: Option<CaCertificate>,
+    ) -> Result<Self> {
+        if let Some(ref ca) = ca_cert {
+            ca.validate()
+                .context("configured CA certificate is invalid")?;
+        }
         let store = open_vault(vault_path, vault_password)?;
         Ok(Self {
             vault: Mutex::new(store),
             tokens,
+            ca_cert,
         })
     }
 
     /// Agent tokens, keyed by agent name.
     pub fn tokens(&self) -> &HashMap<String, String> {
         &self.tokens
+    }
+
+    /// Configured `aegis-net` CA certificate, if node-certificate verification
+    /// is enabled.
+    pub fn ca_cert(&self) -> Option<&CaCertificate> {
+        self.ca_cert.as_ref()
     }
 
     /// Locks the vault, recovering a poisoned guard's contents rather than
