@@ -38,10 +38,10 @@ pub fn check(manifest: &NetworkManifest, config_dir: &Path) -> NetworkStatus {
             .join(format!("{}.cert", name));
         if cert_path.exists() {
             peers_with_certs += 1;
-            if let Ok(cert) = NodeCertificate::load(&cert_path) {
-                if !cert.is_valid() {
-                    expired_certs.push(name.clone());
-                }
+            if let Ok(cert) = NodeCertificate::load(&cert_path)
+                && !cert.is_valid()
+            {
+                expired_certs.push(name.clone());
             }
         }
     }

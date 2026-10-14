@@ -104,15 +104,14 @@ pub fn plan_remediation(
                 if let (Ok(src_content), Ok(tgt_content)) = (
                     std::fs::read_to_string(&source),
                     std::fs::read_to_string(&target),
-                ) {
-                    if src_content != tgt_content {
-                        actions.push(Action::RepairDrift {
-                            module: module.name.clone(),
-                            source,
-                            target,
-                            strategy,
-                        });
-                    }
+                ) && src_content != tgt_content
+                {
+                    actions.push(Action::RepairDrift {
+                        module: module.name.clone(),
+                        source,
+                        target,
+                        strategy,
+                    });
                 }
             }
         }

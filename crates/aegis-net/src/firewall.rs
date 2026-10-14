@@ -81,10 +81,10 @@ fn matches_port(rule_port: &str, actual_port: u16) -> bool {
     }
 
     // Port range (e.g., "8000-9000")
-    if let Some((start, end)) = rule_port.split_once('-') {
-        if let (Ok(s), Ok(e)) = (start.parse::<u16>(), end.parse::<u16>()) {
-            return actual_port >= s && actual_port <= e;
-        }
+    if let Some((start, end)) = rule_port.split_once('-')
+        && let (Ok(s), Ok(e)) = (start.parse::<u16>(), end.parse::<u16>())
+    {
+        return actual_port >= s && actual_port <= e;
     }
 
     false

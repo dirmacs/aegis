@@ -586,14 +586,14 @@ async fn up(args: NetUpArgs, ctx: &Context) -> Result<()> {
 
     if ctx.dry_run {
         println!("  [dry-run] Would bring up {}", config_path.display());
-        if args.apply_firewall {
-            if let Some(ref peer_name) = args.peer {
-                let ruleset = firewall::render_nftables(&manifest, peer_name)?;
-                println!(
-                    "  [dry-run] Would apply nftables ruleset ({} bytes)",
-                    ruleset.len()
-                );
-            }
+        if args.apply_firewall
+            && let Some(ref peer_name) = args.peer
+        {
+            let ruleset = firewall::render_nftables(&manifest, peer_name)?;
+            println!(
+                "  [dry-run] Would apply nftables ruleset ({} bytes)",
+                ruleset.len()
+            );
         }
         return Ok(());
     }

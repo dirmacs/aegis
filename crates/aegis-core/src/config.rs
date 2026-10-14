@@ -42,11 +42,12 @@ pub fn deploy_config(
         bail!("source does not exist: {}", source.display());
     }
 
-    if let Some(parent) = target.parent() {
-        if !parent.exists() && !dry_run {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("creating parent dir {}", parent.display()))?;
-        }
+    if let Some(parent) = target.parent()
+        && !parent.exists()
+        && !dry_run
+    {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating parent dir {}", parent.display()))?;
     }
 
     match strategy {

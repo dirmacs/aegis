@@ -293,12 +293,12 @@ impl PackageSpec {
         let pkg = self.scoop_package.as_deref().unwrap_or(&self.name);
 
         // Add bucket if specified and not already added
-        if let Some(bucket) = &self.scoop_bucket {
-            if !dry_run {
-                let _ = Command::new("scoop")
-                    .args(["bucket", "add", bucket])
-                    .status();
-            }
+        if let Some(bucket) = &self.scoop_bucket
+            && !dry_run
+        {
+            let _ = Command::new("scoop")
+                .args(["bucket", "add", bucket])
+                .status();
         }
 
         if dry_run {
