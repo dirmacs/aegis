@@ -1,12 +1,19 @@
 [network]
-name = "dirmacs-mesh"
+name = "example-mesh"
 cidr = "10.42.0.0/24"
 config_dir = "/etc/aegis-net"
 listen_port = 51820
 mtu = 1300
 interface = "aegis0"
 
-[peers.baala-laptop]
+[peers.lighthouse]
+ip = "10.42.0.1"
+groups = ["servers"]
+endpoint = "203.0.113.1:51820"
+lighthouse = true
+cert_duration = "365d"
+
+[peers.alice-laptop]
 ip = "10.42.0.2"
 groups = [
     "admin",
@@ -15,14 +22,7 @@ groups = [
 lighthouse = false
 cert_duration = "365d"
 
-[peers.vps]
-ip = "10.42.0.1"
-groups = ["servers"]
-endpoint = "217.216.78.38:51820"
-lighthouse = true
-cert_duration = "365d"
-
-[peers.shanjeth-mac]
+[peers.bob-workstation]
 ip = "10.42.0.3"
 groups = [
     "admin",
@@ -31,12 +31,10 @@ groups = [
 lighthouse = false
 cert_duration = "365d"
 
-[peers.baala-phone]
-ip = "10.42.0.4"
-groups = [
-    "admin",
-    "dev",
-]
+[peers.app-server]
+ip = "10.42.0.10"
+groups = ["servers"]
+endpoint = "203.0.113.10:51820"
 lighthouse = false
 cert_duration = "365d"
 

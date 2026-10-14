@@ -47,15 +47,16 @@ Think of it as a modern, Rust-native alternative to shell-script-based dotfile m
 
 ## Architecture
 
-Aegis is a 6-crate Rust workspace:
+Aegis is a 7-crate Rust workspace:
 
 ```
 aegis/
 ├── aegis-core        # Manifest parsing, module system, templates, diffing
 ├── aegis-opencode    # Typed TOML → opencode.json + oh-my-opencode.json
 ├── aegis-toolchain   # Dirmacs tool install, update, health checks
-├── aegis-net         # Overlay network management (CA, peers, WireGuard)
+├── aegis-net         # Overlay network management (CA, peers, WireGuard, nftables)
 ├── aegis-secrets     # Encrypted secrets vault (passwords, API keys, tokens)
+├── aegis-serve       # Authenticated HTTP secrets keychain service
 └── aegis-cli         # Clap-based CLI binary + all subcommands
 ```
 
@@ -74,4 +75,3 @@ Aegis is one part of the dirmacs open-source AI infrastructure stack:
 | [eruka](https://eruka.dirmacs.com) | Context memory engine — knowledge graph for agent session continuity |
 | [deagle](https://github.com/dirmacs/deagle) | Code intelligence — tree-sitter + SQLite graph, 9 languages |
 | [daedra](https://dirmacs.github.io/daedra) | Web search MCP server — 7 backends, automatic fallback |
-| [doltclaw](https://dirmacs.github.io/doltclaw) | Minimal Rust agent runtime for direct NIM/NVIDIA inference |

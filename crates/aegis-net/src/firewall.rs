@@ -391,7 +391,7 @@ mod tests {
             &config,
             Direction::Inbound,
             &["admin".to_string()],
-            "baala",
+            "alice",
             22,
             "tcp",
         );

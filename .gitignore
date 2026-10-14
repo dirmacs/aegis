@@ -10,3 +10,7 @@ docs/public/
 # Environment files
 .env
 .env.*
+
+# Live network manifest and local compose overrides
+/aegis-net.toml
+docker-compose.override.yml

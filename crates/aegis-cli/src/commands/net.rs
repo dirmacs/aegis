@@ -50,7 +50,7 @@ pub enum NetCommand {
 #[derive(clap::Args)]
 pub struct NetInitArgs {
     /// Network name
-    #[arg(long, default_value = "dirmacs-mesh")]
+    #[arg(long, default_value = "aegis-mesh")]
     pub name: String,
     /// Network CIDR
     #[arg(long, default_value = "10.42.0.0/24")]
@@ -182,6 +182,22 @@ pub struct NetDistributeArgs {
     pub manifest: String,
 }
 
+const DEFAULT_MANIFEST_NAME: &str = "aegis-net.toml";
+const SYSTEM_MANIFEST_PATH: &str = "/etc/aegis-net/aegis-net.toml";
+
+fn resolve_manifest_path(raw: &str) -> PathBuf {
+    resolve_manifest_path_with(raw, std::path::Path::new(SYSTEM_MANIFEST_PATH))
+}
+
+fn resolve_manifest_path_with(raw: &str, system_fallback: &std::path::Path) -> PathBuf {
+    let candidate = PathBuf::from(raw);
+    if raw == DEFAULT_MANIFEST_NAME && !candidate.exists() && system_fallback.exists() {
+        system_fallback.to_path_buf()
+    } else {
+        candidate
+    }
+}
+
 pub async fn run(args: NetArgs, ctx: &Context) -> Result<()> {
     match args.command {
         NetCommand::Init(a) => init(a, ctx).await,
@@ -272,7 +288,7 @@ async fn net_status(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
     let red = Style::new().red();
     let dim = Style::new().dim();
 
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let config_dir = &manifest.network.config_dir;
     let st = status::check(&manifest, config_dir);
 
@@ -334,7 +350,7 @@ async fn net_status(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
 
 async fn add_peer(args: AddPeerArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest_path = PathBuf::from(&args.manifest);
+    let manifest_path = resolve_manifest_path(&args.manifest);
     let mut manifest = NetworkManifest::load(&manifest_path)?;
     let config_dir = manifest.network.config_dir.clone();
 
@@ -393,7 +409,7 @@ async fn add_peer(args: AddPeerArgs, ctx: &Context) -> Result<()> {
 
 async fn remove_peer(args: RemovePeerArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest_path = PathBuf::from(&args.manifest);
+    let manifest_path = resolve_manifest_path(&args.manifest);
     let mut manifest = NetworkManifest::load(&manifest_path)?;
 
     if ctx.dry_run {
@@ -417,7 +433,7 @@ async fn list_peers(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
     let bold = Style::new().bold();
     let dim = Style::new().dim();
 
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let peers = peer::list_peers(&manifest);
 
     if peers.is_empty() {
@@ -446,7 +462,7 @@ async fn list_peers(args: NetStatusArgs, _ctx: &Context) -> Result<()> {
 
 async fn generate(args: NetGenerateArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let config_dir = &manifest.network.config_dir;
 
     // Load all WireGuard public keys
@@ -513,7 +529,7 @@ async fn generate(args: NetGenerateArgs, ctx: &Context) -> Result<()> {
 
 async fn sign(args: SignArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let config_dir = &manifest.network.config_dir;
 
     let peer = manifest
@@ -553,7 +569,7 @@ async fn sign(args: SignArgs, ctx: &Context) -> Result<()> {
 
 async fn up(args: NetUpArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
 
     let config_path = match (&args.config, &args.peer) {
         (Some(path), _) => PathBuf::from(path),
@@ -611,7 +627,7 @@ async fn down(args: NetDownArgs, ctx: &Context) -> Result<()> {
     let target = match args.target {
         Some(t) => t,
         None => {
-            let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+            let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
             manifest.network.interface
         }
     };
@@ -628,7 +644,7 @@ async fn down(args: NetDownArgs, ctx: &Context) -> Result<()> {
 
 async fn run_firewall(args: NetFirewallArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let ruleset = firewall::render_nftables(&manifest, &args.peer)?;
 
     if !args.apply || ctx.dry_run {
@@ -647,7 +663,7 @@ async fn run_firewall(args: NetFirewallArgs, ctx: &Context) -> Result<()> {
 
 async fn run_distribute(args: NetDistributeArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
-    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let manifest = NetworkManifest::load(&resolve_manifest_path(&args.manifest))?;
     let config_dir = &manifest.network.config_dir;
 
     let bundle = distribute::build_peer_bundle(&manifest, config_dir, &args.peer)?;
@@ -690,4 +706,30 @@ async fn run_distribute(args: NetDistributeArgs, ctx: &Context) -> Result<()> {
         println!("  {} Wrote {}", green.apply_to("✓"), p.display());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_manifest_path_falls_back_to_system_when_default_missing() {
+        let dir = std::env::temp_dir().join(format!("aegis-net-resolve-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let sys_manifest = dir.join("system-aegis-net.toml");
+        std::fs::write(&sys_manifest, "[network]\n").unwrap();
+
+        // When the default name is passed and not present in cwd, falls back to system path
+        let resolved = resolve_manifest_path_with(DEFAULT_MANIFEST_NAME, &sys_manifest);
+        assert_eq!(resolved, sys_manifest);
+
+        // An explicit custom path is never redirected to the system fallback
+        let explicit = dir.join("custom.toml");
+        let resolved_explicit =
+            resolve_manifest_path_with(explicit.to_str().unwrap(), &sys_manifest);
+        assert_eq!(resolved_explicit, explicit);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

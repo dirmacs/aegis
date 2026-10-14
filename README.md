@@ -80,13 +80,14 @@ aegis bootstrap
 
 ## Architecture
 
-6-crate Rust workspace:
+7-crate Rust workspace:
 
 | Crate | Description |
 |-------|-------------|
 | `aegis-core` | Manifest parsing, module system, templates, diffing |
 | `aegis-secrets` | Encrypted vault — AES-256-GCM + Argon2id for API keys/tokens |
-| `aegis-net` | Overlay network management (WireGuard/Nebula-style peer mesh) |
+| `aegis-serve` | Authenticated HTTP secrets keychain service |
+| `aegis-net` | Overlay network management (WireGuard/Nebula-style peer mesh + nftables) |
 | `aegis-opencode` | Typed TOML to opencode.json + oh-my-opencode.json |
 | `aegis-toolchain` | Dirmacs ecosystem install, update, health checks |
 | `aegis-cli` | Clap-based CLI binary |

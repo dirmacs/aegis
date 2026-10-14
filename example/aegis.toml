@@ -1,6 +1,6 @@
 [aegis]
 version = "0.1.0"
-description = "Dirmacs development environment"
+description = "Development environment configuration"
 default_profile = "dev-vps"
 strategy = "symlink"
 
@@ -8,22 +8,21 @@ strategy = "symlink"
 hostname = { source = "command", value = "hostname" }
 user = { source = "env", value = "USER" }
 nvidia_api_key = { source = "env", value = "NVIDIA_API_KEY" }
-dolta_api_key = { source = "env", value = "DOLTA_API_KEY" }
 
-# VPS service topology
-channel_gateway_url = { source = "static", value = "http://localhost:9000" }
-channel_gateway_port = { source = "static", value = "9000" }
-channel_gateway_secret = { source = "env", value = "CHANNEL_GATEWAY_SECRET" }
-channel_default_whatsapp_to = { source = "env", value = "CHANNEL_DEFAULT_WHATSAPP_TO" }
+# Service configuration variables
+gateway_url = { source = "static", value = "http://localhost:9000" }
+gateway_secret = { source = "env", value = "GATEWAY_SECRET" }
+worker_queue_url = { source = "static", value = "redis://localhost:6379" }
+worker_concurrency = { source = "static", value = "4" }
 
 [profiles.dev-vps]
-description = "Development VPS with full tooling"
-modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs", "vps-services", "container-services"]
+description = "Development server with full tooling"
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "my-platform", "my-services", "container-services"]
 variables = { gpu_available = "false" }
 
 [profiles.workstation]
 description = "Local workstation with GPU"
-modules = ["shell", "terminal", "dev-tools", "ai-tools", "dirmacs"]
+modules = ["shell", "terminal", "dev-tools", "ai-tools", "my-platform"]
 variables = { gpu_available = "true" }
 
 [profiles.ci]
@@ -47,12 +46,12 @@ name = "dev-tools"
 path = "modules/dev-tools"
 
 [[modules]]
-name = "dirmacs"
-path = "modules/dirmacs"
+name = "my-platform"
+path = "modules/my-platform"
 
 [[modules]]
-name = "vps-services"
-path = "modules/vps-services"
+name = "my-services"
+path = "modules/my-services"
 
 [[modules]]
 name = "container-services"
