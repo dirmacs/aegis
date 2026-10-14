@@ -442,7 +442,7 @@ mod tests {
         let cert = ca
             .sign_node(
                 "test-node",
-                "10.42.0.1",
+                "203.0.113.1",
                 &["servers".to_string()],
                 &node_pub.to_bytes(),
                 365,
@@ -450,7 +450,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(cert.name, "test-node");
-        assert_eq!(cert.ip, "10.42.0.1");
+        assert_eq!(cert.ip, "203.0.113.1");
         assert_eq!(cert.groups, vec!["servers"]);
         assert!(cert.is_valid());
 
@@ -459,7 +459,7 @@ mod tests {
 
         // Tampered cert should fail
         let mut tampered = cert.clone();
-        tampered.ip = "10.42.0.99".to_string();
+        tampered.ip = "203.0.113.99".to_string();
         assert!(ca.verify(&tampered).is_err());
     }
 
@@ -481,7 +481,7 @@ mod tests {
         let cert = ca
             .sign_node(
                 "node1",
-                "10.42.0.1",
+                "203.0.113.1",
                 &["servers".to_string()],
                 &node_pub.to_bytes(),
                 365,
@@ -507,7 +507,7 @@ mod tests {
         let cert = ca
             .sign_node(
                 "node1",
-                "10.42.0.1",
+                "203.0.113.1",
                 &["servers".to_string()],
                 &node_pub.to_bytes(),
                 365,
@@ -534,7 +534,7 @@ mod tests {
         let cert = ca
             .sign_node(
                 "node1",
-                "10.42.0.1",
+                "203.0.113.1",
                 &["servers".to_string()],
                 &node_pub.to_bytes(),
                 365,

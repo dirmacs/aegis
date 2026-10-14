@@ -267,7 +267,7 @@ mod tests {
             r#"
 [network]
 name = "test-mesh"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 config_dir = "{}"
 interface = "aegis0"
 
@@ -294,7 +294,7 @@ action = "allow"
                 dir,
                 AddPeerSpec {
                     name: name.to_string(),
-                    ip: IpAddr::V4(Ipv4Addr::new(10, 42, 0, last_octet)),
+                    ip: IpAddr::V4(Ipv4Addr::new(203, 0, 113, last_octet)),
                     groups: vec!["servers".to_string()],
                     endpoint: lighthouse.then(|| "198.51.100.1:51820".to_string()),
                     lighthouse,
@@ -317,7 +317,7 @@ action = "allow"
 
         let bundle = build_peer_bundle(&manifest, dir.path(), "app").unwrap();
         assert!(bundle.wg_config.contains("[Interface]"));
-        assert!(bundle.wg_config.contains("10.42.0.2/32"));
+        assert!(bundle.wg_config.contains("203.0.113.2/32"));
         assert!(bundle.wg_config.contains("[Peer]"));
         assert!(bundle.nftables_ruleset.contains("table inet aegis_aegis0"));
 
@@ -363,10 +363,10 @@ action = "allow"
         let mut received: HashMap<String, Vec<u8>> = HashMap::new();
         push_bundle_with(
             &bundle,
-            "root@10.42.0.2",
+            "root@203.0.113.2",
             "/etc/aegis-net",
             |dest, path, bytes| {
-                assert_eq!(dest, "root@10.42.0.2");
+                assert_eq!(dest, "root@203.0.113.2");
                 received.insert(path.to_string(), bytes.to_vec());
                 Ok(())
             },

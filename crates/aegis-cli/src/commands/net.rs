@@ -275,7 +275,7 @@ async fn init(args: NetInitArgs, ctx: &Context) -> Result<()> {
     println!();
     println!("Next steps:");
     println!(
-        "  aegis net add-peer vps --ip 10.42.0.1 --groups servers --lighthouse --endpoint YOUR_IP:51820"
+        "  aegis net add-peer vps --ip 203.0.113.1 --groups servers --lighthouse --endpoint YOUR_IP:51820"
     );
     println!("  aegis net add-peer laptop --groups admin,dev");
     println!("  aegis net generate");

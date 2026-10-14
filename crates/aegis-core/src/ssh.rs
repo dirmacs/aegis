@@ -173,21 +173,21 @@ mod tests {
     fn display_format() {
         let target = SshTarget {
             user: "root".into(),
-            host: "10.42.0.1".into(),
+            host: "203.0.113.1".into(),
             port: None,
             identity_file: None,
         };
-        assert_eq!(target.display(), "root@10.42.0.1");
+        assert_eq!(target.display(), "root@203.0.113.1");
     }
 
     #[test]
     fn display_format_with_port() {
         let target = SshTarget {
             user: "user".into(),
-            host: "10.42.0.2".into(),
+            host: "203.0.113.2".into(),
             port: Some(2222),
             identity_file: None,
         };
-        assert_eq!(target.display(), "user@10.42.0.2");
+        assert_eq!(target.display(), "user@203.0.113.2");
     }
 }
