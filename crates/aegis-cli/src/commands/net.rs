@@ -7,6 +7,8 @@ use console::Style;
 
 use aegis_net::ca::CertificateAuthority;
 use aegis_net::config::NetworkManifest;
+use aegis_net::distribute;
+use aegis_net::firewall;
 use aegis_net::peer;
 use aegis_net::status;
 use aegis_net::wg::{self, WgKeypair};
@@ -35,6 +37,14 @@ pub enum NetCommand {
     Generate(NetGenerateArgs),
     /// Sign (or re-sign) a peer's certificate
     Sign(SignArgs),
+    /// Bring up a WireGuard overlay interface via wg-quick
+    Up(NetUpArgs),
+    /// Tear down a WireGuard overlay interface via wg-quick
+    Down(NetDownArgs),
+    /// Render or apply nftables firewall rules for a peer
+    Firewall(NetFirewallArgs),
+    /// Package and distribute a peer's verified bundle locally or over SSH
+    Distribute(NetDistributeArgs),
 }
 
 #[derive(clap::Args)]
@@ -117,6 +127,61 @@ pub struct SignArgs {
     pub manifest: String,
 }
 
+#[derive(clap::Args)]
+pub struct NetUpArgs {
+    /// Explicit path to a wg-quick .conf file (overrides --peer)
+    #[arg(long)]
+    pub config: Option<String>,
+    /// Peer name to resolve config for under <config_dir>/wg-configs/
+    #[arg(long)]
+    pub peer: Option<String>,
+    /// Also apply nftables firewall rules for --peer after bringing interface up
+    #[arg(long)]
+    pub apply_firewall: bool,
+    /// Path to aegis-net.toml
+    #[arg(long, default_value = "aegis-net.toml")]
+    pub manifest: String,
+}
+
+#[derive(clap::Args)]
+pub struct NetDownArgs {
+    /// Interface name or wg-quick .conf path (defaults to manifest interface)
+    pub target: Option<String>,
+    /// Path to aegis-net.toml
+    #[arg(long, default_value = "aegis-net.toml")]
+    pub manifest: String,
+}
+
+#[derive(clap::Args)]
+pub struct NetFirewallArgs {
+    /// Peer name to render/apply rules for
+    pub peer: String,
+    /// Apply rules to the live host via `nft -f -` (prints ruleset when omitted)
+    #[arg(long)]
+    pub apply: bool,
+    /// Path to aegis-net.toml
+    #[arg(long, default_value = "aegis-net.toml")]
+    pub manifest: String,
+}
+
+#[derive(clap::Args)]
+pub struct NetDistributeArgs {
+    /// Peer name to distribute bundle for
+    pub peer: String,
+    /// Remote SSH destination (user@host)
+    #[arg(long)]
+    pub to: Option<String>,
+    /// Remote directory when pushing over SSH
+    #[arg(long, default_value = "/etc/aegis-net")]
+    pub remote_dir: String,
+    /// Local directory to write bundle into (when not pushing via --to)
+    #[arg(long)]
+    pub output_dir: Option<String>,
+    /// Path to aegis-net.toml
+    #[arg(long, default_value = "aegis-net.toml")]
+    pub manifest: String,
+}
+
 pub async fn run(args: NetArgs, ctx: &Context) -> Result<()> {
     match args.command {
         NetCommand::Init(a) => init(a, ctx).await,
@@ -126,6 +191,10 @@ pub async fn run(args: NetArgs, ctx: &Context) -> Result<()> {
         NetCommand::ListPeers(a) => list_peers(a, ctx).await,
         NetCommand::Generate(a) => generate(a, ctx).await,
         NetCommand::Sign(a) => sign(a, ctx).await,
+        NetCommand::Up(a) => up(a, ctx).await,
+        NetCommand::Down(a) => down(a, ctx).await,
+        NetCommand::Firewall(a) => run_firewall(a, ctx).await,
+        NetCommand::Distribute(a) => run_distribute(a, ctx).await,
     }
 }
 
@@ -479,5 +548,146 @@ async fn sign(args: SignArgs, ctx: &Context) -> Result<()> {
         cert.expires_at.format("%Y-%m-%d")
     );
 
+    Ok(())
+}
+
+async fn up(args: NetUpArgs, ctx: &Context) -> Result<()> {
+    let green = Style::new().green().bold();
+    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+
+    let config_path = match (&args.config, &args.peer) {
+        (Some(path), _) => PathBuf::from(path),
+        (None, Some(peer_name)) => manifest
+            .network
+            .config_dir
+            .join("wg-configs")
+            .join(format!("{}-{}.conf", manifest.network.interface, peer_name)),
+        (None, None) => manifest
+            .network
+            .config_dir
+            .join(format!("{}.conf", manifest.network.interface)),
+    };
+
+    if ctx.dry_run {
+        println!("  [dry-run] Would bring up {}", config_path.display());
+        if args.apply_firewall {
+            if let Some(ref peer_name) = args.peer {
+                let ruleset = firewall::render_nftables(&manifest, peer_name)?;
+                println!(
+                    "  [dry-run] Would apply nftables ruleset ({} bytes)",
+                    ruleset.len()
+                );
+            }
+        }
+        return Ok(());
+    }
+
+    wg::interface_up(&config_path)?;
+    println!(
+        "  {} Interface up: {}",
+        green.apply_to("✓"),
+        config_path.display()
+    );
+
+    if args.apply_firewall {
+        let peer_name = args
+            .peer
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("--apply-firewall requires --peer <name>"))?;
+        let ruleset = firewall::render_nftables(&manifest, peer_name)?;
+        firewall::apply_nftables(&ruleset)?;
+        println!(
+            "  {} Applied nftables firewall for peer '{}'",
+            green.apply_to("✓"),
+            peer_name
+        );
+    }
+
+    Ok(())
+}
+
+async fn down(args: NetDownArgs, ctx: &Context) -> Result<()> {
+    let green = Style::new().green().bold();
+    let target = match args.target {
+        Some(t) => t,
+        None => {
+            let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+            manifest.network.interface
+        }
+    };
+
+    if ctx.dry_run {
+        println!("  [dry-run] Would tear down {}", target);
+        return Ok(());
+    }
+
+    wg::interface_down(&target)?;
+    println!("  {} Interface down: {}", green.apply_to("✓"), target);
+    Ok(())
+}
+
+async fn run_firewall(args: NetFirewallArgs, ctx: &Context) -> Result<()> {
+    let green = Style::new().green().bold();
+    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let ruleset = firewall::render_nftables(&manifest, &args.peer)?;
+
+    if !args.apply || ctx.dry_run {
+        print!("{ruleset}");
+        return Ok(());
+    }
+
+    firewall::apply_nftables(&ruleset)?;
+    println!(
+        "  {} Applied nftables firewall for peer '{}'",
+        green.apply_to("✓"),
+        args.peer
+    );
+    Ok(())
+}
+
+async fn run_distribute(args: NetDistributeArgs, ctx: &Context) -> Result<()> {
+    let green = Style::new().green().bold();
+    let manifest = NetworkManifest::load(&PathBuf::from(&args.manifest))?;
+    let config_dir = &manifest.network.config_dir;
+
+    let bundle = distribute::build_peer_bundle(&manifest, config_dir, &args.peer)?;
+
+    if let Some(ref dest) = args.to {
+        if ctx.dry_run {
+            println!(
+                "  [dry-run] Would push bundle for '{}' → {}:{}",
+                args.peer, dest, args.remote_dir
+            );
+            return Ok(());
+        }
+        distribute::push_bundle_ssh(&bundle, dest, &args.remote_dir)?;
+        println!(
+            "  {} Pushed bundle for '{}' → {}:{}",
+            green.apply_to("✓"),
+            args.peer,
+            dest,
+            args.remote_dir
+        );
+        return Ok(());
+    }
+
+    let out_dir = args
+        .output_dir
+        .map(PathBuf::from)
+        .unwrap_or_else(|| config_dir.join("bundles").join(&args.peer));
+
+    if ctx.dry_run {
+        println!(
+            "  [dry-run] Would write bundle for '{}' to {}",
+            args.peer,
+            out_dir.display()
+        );
+        return Ok(());
+    }
+
+    let paths = distribute::write_bundle_local(&bundle, &out_dir)?;
+    for p in paths {
+        println!("  {} Wrote {}", green.apply_to("✓"), p.display());
+    }
     Ok(())
 }

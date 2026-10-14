@@ -180,6 +180,100 @@ pub fn check_wg_available() -> bool {
     which::which("wg").is_ok() && which::which("wg-quick").is_ok()
 }
 
+/// Validate and bring up a WireGuard interface from a `wg-quick` config file
+/// using the provided command runner `(program, args) -> Result<Output>`.
+pub fn interface_up_with<F>(config_path: &Path, mut runner: F) -> Result<()>
+where
+    F: FnMut(&str, &[&str]) -> Result<std::process::Output>,
+{
+    let meta = std::fs::metadata(config_path)
+        .with_context(|| format!("stat WireGuard config {}", config_path.display()))?;
+    if !meta.is_file() {
+        anyhow::bail!(
+            "WireGuard config {} is not a regular file",
+            config_path.display()
+        );
+    }
+    if meta.len() == 0 {
+        anyhow::bail!("WireGuard config {} is empty", config_path.display());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let mode = meta.mode() & 0o777;
+        if mode & 0o077 != 0 {
+            anyhow::bail!(
+                "refusing to bring up {}: file mode {:04o} allows group/other access (expected 0600)",
+                config_path.display(),
+                mode
+            );
+        }
+    }
+
+    let path_str = config_path
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("config path is not valid UTF-8"))?;
+    let output = runner("wg-quick", &["up", path_str])
+        .with_context(|| format!("running wg-quick up {}", config_path.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "wg-quick up {} failed: {}",
+            config_path.display(),
+            stderr.trim()
+        );
+    }
+
+    Ok(())
+}
+
+/// Bring up a WireGuard interface from a `wg-quick` config file via `wg-quick up`.
+pub fn interface_up(config_path: &Path) -> Result<()> {
+    interface_up_with(config_path, |prog, args| {
+        std::process::Command::new(prog)
+            .args(args)
+            .output()
+            .with_context(|| format!("spawning {prog}"))
+    })
+}
+
+/// Tear down a WireGuard interface (by interface name or config path) using
+/// the provided command runner.
+pub fn interface_down_with<F>(target: &str, mut runner: F) -> Result<()>
+where
+    F: FnMut(&str, &[&str]) -> Result<std::process::Output>,
+{
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("interface or config target must not be empty");
+    }
+    if trimmed.starts_with('-') {
+        anyhow::bail!("invalid interface or config target '{trimmed}'");
+    }
+
+    let output = runner("wg-quick", &["down", trimmed])
+        .with_context(|| format!("running wg-quick down {trimmed}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("wg-quick down {trimmed} failed: {}", stderr.trim());
+    }
+
+    Ok(())
+}
+
+/// Tear down a WireGuard interface via `wg-quick down`.
+pub fn interface_down(target: &str) -> Result<()> {
+    interface_down_with(target, |prog, args| {
+        std::process::Command::new(prog)
+            .args(args)
+            .output()
+            .with_context(|| format!("spawning {prog}"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,5 +346,66 @@ action = "allow"
         assert!(config.contains("[Peer]"));
         assert!(config.contains("1.2.3.4:51820"));
         assert!(config.contains("PersistentKeepalive"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn interface_up_rejects_group_or_world_readable_config() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("aegis0.conf");
+        std::fs::write(&path, "[Interface]\nPrivateKey = AAAA\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let mut called = false;
+        let err = interface_up_with(&path, |_prog, _args| {
+            called = true;
+            unreachable!("runner must not be called when permissions are too wide");
+        })
+        .unwrap_err();
+
+        assert!(!called);
+        assert!(
+            format!("{err:#}").contains("0644"),
+            "unexpected error: {err:#}"
+        );
+    }
+
+    #[test]
+    fn interface_up_invokes_wg_quick_on_0600_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_config("[Interface]\nPrivateKey = AAAA\n", dir.path(), "aegis0").unwrap();
+
+        let mut recorded: Vec<(String, Vec<String>)> = Vec::new();
+        interface_up_with(&path, |prog, args| {
+            recorded.push((
+                prog.to_string(),
+                args.iter().map(|s| (*s).to_string()).collect(),
+            ));
+            Ok(std::process::Output {
+                status: std::os::unix::process::ExitStatusExt::from_raw(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        })
+        .unwrap();
+
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].0, "wg-quick");
+        assert_eq!(
+            recorded[0].1,
+            vec!["up".to_string(), path.display().to_string()]
+        );
+    }
+
+    #[test]
+    fn interface_down_rejects_empty_and_flag_targets() {
+        for bad in ["", "   ", "-h", "--help"] {
+            let err = interface_down_with(bad, |_prog, _args| {
+                unreachable!("runner must not be called on invalid target");
+            });
+            assert!(err.is_err(), "expected error for target {bad:?}");
+        }
     }
 }
