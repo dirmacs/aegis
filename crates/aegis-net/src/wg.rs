@@ -398,33 +398,6 @@ pub fn allowed_ips_routed<T: AsRef<str>>(
         && (!route_table.trim().is_empty() || expected_allowed_ips.is_empty())
 }
 
-/// Compatibility alias for the pure predicate.
-pub fn are_allowed_ips_routed<T: AsRef<str>>(
-    iface: &str,
-    expected_allowed_ips: &[T],
-    route_table: &str,
-) -> bool {
-    allowed_ips_routed(iface, expected_allowed_ips, route_table)
-}
-
-/// Compatibility alias for the pure predicate.
-pub fn routes_cover_allowed_ips<T: AsRef<str>>(
-    iface: &str,
-    expected_allowed_ips: &[T],
-    route_table: &str,
-) -> bool {
-    allowed_ips_routed(iface, expected_allowed_ips, route_table)
-}
-
-/// Compatibility alias returning the missing AllowedIPs.
-pub fn allowed_ip_route_guard_missing<T: AsRef<str>>(
-    iface: &str,
-    expected_allowed_ips: &[T],
-    route_table: &str,
-) -> Vec<String> {
-    missing_allowed_ip_routes(iface, expected_allowed_ips, route_table)
-}
-
 /// Fail-closed verification used by `aegis net up`: returns an error naming the
 /// missing AllowedIPs (or an unreadable route table).
 pub fn verify_allowed_ip_routes<T: AsRef<str>>(
