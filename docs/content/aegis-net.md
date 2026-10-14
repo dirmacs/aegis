@@ -76,3 +76,33 @@ action = "allow"
 - **WireGuard**: x25519 Curve25519 key exchange, per-peer configs verified to mode `0600` before `wg-quick up`.
 - **Firewall**: Rules reference groups (like Nebula security groups), resolved both to WireGuard `AllowedIPs` and to an atomic `nftables` `table inet aegis_<iface>` ruleset scoped strictly to the overlay interface.
 - **Key storage**: All private keys, vaults, and peer bundles are created with `O_CREAT` mode `0600`.
+
+## Serving the vault over the overlay
+
+`docker-compose.yml` binds `aegis-serve` so an enrolled peer can read the
+keychain. The overlay interface address is **required, not defaulted**:
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `AEGIS_VAULT_PASSWORD` | yes | Vault master password; no default exists |
+| `AEGIS_TOKENS` | yes | `agent:token,agent:token` |
+| `AEGIS_SERVE_HOST` | yes | Address of the overlay interface, e.g. `203.0.113.1` |
+| `AEGIS_SERVE_PORT` | no | Defaults to `8477` |
+| `AEGIS_CA_CERT` | no | Mesh CA; when set, node certificates become mandatory |
+
+Bind the overlay address and nothing else. `0.0.0.0` would also bind the
+host's LAN address and publish the vault beyond the overlay; loopback is
+unreachable from every peer. A wrong guess fails silently from inside the
+container, so compose interpolation refuses to start without the variable
+rather than guessing.
+
+With `AEGIS_CA_CERT` set, `aegis-serve` refuses any `/api/v1/secrets*`
+request that does not carry a node certificate signed by the CA — a bearer
+token alone stops being sufficient. Mount the CA **read-only**: the service
+verifies certificates and never issues them, so it has no need of the CA
+private key.
+
+`network_mode: host` is deliberate. A bridged container cannot bind a host
+address at all, and publishing a host port through the bridge puts the
+listener in the container's own namespace, where the overlay address does
+not exist and `iifname`-keyed firewall rules cannot reach it.
