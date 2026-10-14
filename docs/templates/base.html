@@ -49,14 +49,6 @@
         {% endfor %}
       </div>
 
-      {% set oc = get_section(path="opencode/_index.md") %}
-      <div class="nav-section">
-        <div class="nav-section-title">OpenCode</div>
-        {% for page in oc.pages %}
-        <a href="{{ page.permalink }}" {% if current_path == page.path %}class="active"{% endif %}>{{ page.title }}</a>
-        {% endfor %}
-      </div>
-
       {% set tc = get_section(path="toolchain/_index.md") %}
       <div class="nav-section">
         <div class="nav-section-title">Toolchain</div>

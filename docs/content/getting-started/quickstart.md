@@ -61,18 +61,7 @@ This shows:
 - Environment variable status
 - Dirmacs toolchain health
 
-## 5. Generate OpenCode configs
-
-If you have an `opencode.toml` in your ai-tools module:
-
-```bash
-aegis opencode generate
-# ✓ Generated ~/.config/opencode/opencode.json
-# ✓ Generated ~/.config/opencode/oh-my-opencode.json
-```
-
 ## Next steps
 
 - [Configuration](../configuration/manifest/) — learn the full aegis.toml and module.toml format
 - [CLI Reference](../cli-reference/init/) — every command and flag
-- [OpenCode](../opencode/overview/) — deep dive into the TOML-to-JSON pipeline

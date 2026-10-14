@@ -15,7 +15,6 @@ path = "src/main.rs"
 [dependencies]
 aegis-core = { workspace = true }
 aegis-net = { workspace = true }
-aegis-opencode = { workspace = true }
 aegis-secrets = { workspace = true }
 aegis-toolchain = { workspace = true }
 serde = { workspace = true }

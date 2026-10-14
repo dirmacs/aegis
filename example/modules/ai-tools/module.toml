@@ -1,6 +1,6 @@
 [module]
 name = "ai-tools"
-description = "AI/LLM tool configurations (opencode, claude code)"
+description = "AI/LLM tool configurations"
 
 [[configs]]
 source = "claude/settings.json"

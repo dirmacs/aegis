@@ -18,7 +18,6 @@ version = "0.1.0"
 dependencies = [
  "aegis-core",
  "aegis-net",
- "aegis-opencode",
  "aegis-secrets",
  "aegis-toolchain",
  "anyhow",
@@ -80,19 +79,6 @@ dependencies = [
  "tracing",
  "which",
  "x25519-dalek",
-]
-
-[[package]]
-name = "aegis-opencode"
-version = "0.1.0"
-dependencies = [
- "aegis-core",
- "anyhow",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "toml",
- "tracing",
 ]
 
 [[package]]

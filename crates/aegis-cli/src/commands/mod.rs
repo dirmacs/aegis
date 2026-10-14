@@ -5,7 +5,6 @@ pub mod init;
 pub mod inventory;
 pub mod link;
 pub mod net;
-pub mod opencode;
 pub mod profile;
 pub mod push;
 pub mod remote;

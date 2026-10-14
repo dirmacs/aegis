@@ -5,7 +5,7 @@ weight = 3
 
 # Model Triage with Nimakai
 
-[Nimakai](https://github.com/dirmacs/nimakai) is a NVIDIA NIM model latency benchmarker written in Nim. Use it to find which models are responsive before configuring opencode and oh-my-opencode.
+[Nimakai](https://github.com/dirmacs/nimakai) is a NVIDIA NIM model latency benchmarker written in Nim. Use it to find which models are responsive before configuring your AI tools.
 
 ## Installation
 
@@ -35,7 +35,7 @@ nimble build
 ### 4. Set your API key
 
 ```bash
-export NVIDIA_API_KEY=$(grep NVIDIA_API_KEY ~/.config/opencode/.env | cut -d= -f2)
+export NVIDIA_API_KEY="your-nvidia-api-key"
 ```
 
 ## Usage
@@ -80,7 +80,7 @@ Suggests optimal model→agent assignments based on latency and capability.
 |---------|---------|-------------|
 | Perfect | <500ms | Any agent role |
 | Normal | 500ms-1s | Most agent roles |
-| Slow | 1-3s | Heavy tasks only (hephaestus) |
+| Slow | 1-3s | Heavy tasks only |
 | Very Slow | 3-10s | Avoid for agents |
 | Unstable | >10s | Do not use |
 
@@ -88,7 +88,7 @@ Suggests optimal model→agent assignments based on latency and capability.
 
 ## Direct tool-use test
 
-After nimakai identifies responsive models, verify tool-use capability with a direct API call before adding to OMO:
+After nimakai identifies responsive models, verify tool-use capability with a direct API call:
 
 ```bash
 curl -sS --max-time 20 "https://integrate.api.nvidia.com/v1/chat/completions" \
@@ -114,15 +114,12 @@ If the response contains a `tool_calls` array, the model can do agent work. If i
 | MiniMax M2.1 | Pings OK but hangs on agent tool-use tasks |
 | Kimi K2.5 | Intermittent timeouts — NIM server-side |
 | Mistral Medium 3 | Fast ping (208ms) but cannot do tool-use — returns text |
-| Nemotron Super 49B | Tool-use works via curl but too slow for OMO timeouts |
+| Nemotron Super 49B | Tool-use works via curl but too slow for interactive agent timeouts |
 | Nemotron 3 Super | 1M context, agentic-optimized. Use `temperature=1.0, top_p=0.95` |
 | Qwen 3.5 VLM | Correct model ID is `qwen/qwen3.5-397b-a17b`, not `qwen3.5-400b` |
 
-## Workflow: selecting models for aegis
+## Workflow: selecting models
 
 1. Run `./nimakai list` to identify responsive models
 2. Run direct tool-use curl test (above) to verify agent capability
-3. Update `${DIRMACS_ROOT}/aegis/example/modules/ai-tools/opencode.toml` with verified models
-4. Regenerate: `aegis opencode generate --input example/modules/ai-tools/opencode.toml`
-5. Test agents: `npx oh-my-opencode run --port 6000 --agent <name> --directory <dir> "<prompt>"`
-6. Always use `--port 6000` or higher — default ports 4096-4100 get stuck from zombie servers
+3. Configure verified models in your agent runtime (e.g., `pawan` / `ares`)

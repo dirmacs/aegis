@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Dirmacs system configuration manager</strong><br>
-  Rust CLI for dotfiles, config management, and OpenCode generation.
+  Rust CLI for dotfiles, config management, secrets, and overlay networking.
 </p>
 
 <p align="center">
@@ -24,7 +24,6 @@ Aegis is a Rust CLI tool that manages system configurations from declarative TOM
 
 - **Config management** — symlink, copy, or template-render configs to their targets
 - **Environment variables** — declare `PATH` fragments and env vars per module, auto-generated as shell snippets
-- **OpenCode generation** — typed TOML to `opencode.json` + `oh-my-opencode.json` with NVIDIA NIM support
 - **Toolchain management** — install, update, and health-check ares, daedra, thulp, eruka, lancor
 - **Profiles** — different module sets and variables per machine type
 - **Drift detection** — diff and status commands show what's changed
@@ -71,16 +70,13 @@ aegis status
 # Deploy configs
 aegis link
 
-# Generate OpenCode configs
-aegis opencode generate
-
 # Full bootstrap (packages + configs + verify)
 aegis bootstrap
 ```
 
 ## Architecture
 
-7-crate Rust workspace:
+6-crate Rust workspace:
 
 | Crate | Description |
 |-------|-------------|
@@ -88,7 +84,6 @@ aegis bootstrap
 | `aegis-secrets` | Encrypted vault — AES-256-GCM + Argon2id for API keys/tokens |
 | `aegis-serve` | Authenticated HTTP secrets keychain service |
 | `aegis-net` | Overlay network management (WireGuard/Nebula-style peer mesh + nftables) |
-| `aegis-opencode` | Typed TOML to opencode.json + oh-my-opencode.json |
 | `aegis-toolchain` | Dirmacs ecosystem install, update, health checks |
 | `aegis-cli` | Clap-based CLI binary |
 
@@ -102,8 +97,6 @@ aegis link [--module NAME]          Deploy configs
 aegis unlink [--module NAME]        Remove configs
 aegis diff [--module NAME]          Show drift
 aegis sync [--module NAME]          Capture live state
-aegis opencode generate             Generate OpenCode JSON
-aegis opencode validate             Validate TOML definitions
 aegis toolchain install [TOOL]      Install dirmacs tools
 aegis toolchain status              Show toolchain health
 aegis toolchain update [TOOL]       Update tools

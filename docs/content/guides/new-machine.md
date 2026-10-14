@@ -64,13 +64,7 @@ aegis profile list
 aegis --profile workstation bootstrap
 ```
 
-### 6. Generate opencode configs
-
-```bash
-aegis opencode generate
-```
-
-### 7. Verify
+### 6. Verify
 
 ```bash
 aegis status

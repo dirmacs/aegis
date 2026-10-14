@@ -53,8 +53,6 @@ enum Commands {
     Link(commands::link::LinkArgs),
     /// Remove deployed managed configs
     Unlink(commands::link::UnlinkArgs),
-    /// Generate and manage opencode configurations
-    Opencode(commands::opencode::OpencodeArgs),
     /// Manage the dirmacs toolchain (ares, daedra, thulp, eruka, lancor)
     Toolchain(commands::toolchain::ToolchainArgs),
     /// Overlay network management (CA, peers, WireGuard configs)
@@ -106,7 +104,6 @@ async fn main() -> Result<()> {
         Commands::Status(args) => commands::status::run(args, &ctx).await,
         Commands::Link(args) => commands::link::run_link(args, &ctx).await,
         Commands::Unlink(args) => commands::link::run_unlink(args, &ctx).await,
-        Commands::Opencode(args) => commands::opencode::run(args, &ctx).await,
         Commands::Toolchain(args) => commands::toolchain::run(args, &ctx).await,
         Commands::Net(args) => commands::net::run(args, &ctx).await,
         Commands::Inventory(args) => commands::inventory::run(args, &ctx).await,
