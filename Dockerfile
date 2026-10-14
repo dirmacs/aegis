@@ -25,20 +25,20 @@ COPY crates/ ./crates/
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release --locked --bin aegis && \
-    cp /app/target/release/aegis /tmp/aegis
+    cargo build --release --locked --bin aegis --bin aegis-serve && \
+    cp /app/target/release/aegis /app/target/release/aegis-serve /tmp/
 
 # ---- runtime ---------------------------------------------------------------
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates git && \
+    apt-get install -y --no-install-recommends ca-certificates git wget && \
     rm -rf /var/lib/apt/lists/* && \
     useradd --create-home --uid 1000 --shell /usr/sbin/nologin aegis
 
-COPY --from=builder /tmp/aegis /usr/local/bin/aegis
+COPY --from=builder /tmp/aegis /tmp/aegis-serve /usr/local/bin/
 
-RUN mkdir -p /work && chown -R aegis:aegis /work
+RUN mkdir -p /work /data && chown -R aegis:aegis /work /data && chmod 700 /data
 WORKDIR /work
 
 USER aegis

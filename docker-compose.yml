@@ -1,0 +1,93 @@
+# aegis-serve — secrets keychain service.
+#
+# Deliberate bind choice, and why it differs from the default:
+#
+# The binary defaults to 127.0.0.1 so an accidental host-wide exposure is
+# impossible. But Docker reaches a container through its eth0 address, not
+# its loopback, so a loopback bind inside the container would make the
+# service unreachable from any sibling container — including the agents
+# that are supposed to talk to it. So this compose file sets AEGIS_BIND to
+# 0.0.0.0 INSIDE the container's own network namespace.
+#
+# That is safe here only because the network below is `internal: true` and
+# no port is published. Internal networks have no route to the host or the
+# internet, so the only peers that can reach this listener are containers
+# explicitly attached to this network. Remove either of those two things
+# and the wildcard bind becomes an exposure.
+#
+# There is still NO TLS. Bearer tokens and secret values cross that network
+# in cleartext. An internal Docker network is reasonable for a single host;
+# it is not a substitute for encryption once this reaches more than one
+# machine. Land mTLS before binding this anywhere non-loopback on a routable
+# network.
+
+services:
+  aegis-serve:
+    image: aegis:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # The image's ENTRYPOINT is `aegis` (the CLI) with `--help`, so without
+    # this the container runs `aegis --help`, prints the command list and
+    # exits 0 — a permanently restarting "healthy-looking" no-op. The image
+    # ships both binaries; pick the server one explicitly.
+    entrypoint: aegis-serve
+    environment:
+      # Required, fail-closed at startup. The service refuses to bind unless
+      # both are present and non-empty; there is no default master password
+      # and no default token set.
+      AEGIS_VAULT_PASSWORD: ${AEGIS_VAULT_PASSWORD:?set AEGIS_VAULT_PASSWORD in the environment or a .env file}
+      AEGIS_TOKENS: ${AEGIS_TOKENS:?set AEGIS_TOKENS as agent:token,agent:token}
+      # Vault path inside the container. Resolves to a named volume, so no
+      # host file is written — which is the point: no host file, so no
+      # umask-dependent mode on the host to worry about.
+      AEGIS_VAULT_PATH: /data/vault.json
+      AEGIS_BIND: 0.0.0.0:8477
+      RUST_LOG: info
+    volumes:
+      - aegis-vault:/data
+    networks:
+      - aegis-internal
+    restart: unless-stopped
+    # Healthcheck uses the one route that needs no auth, so it also proves
+    # the vault unlocked successfully — a vault that failed to open exits
+    # rather than serving, which reads as a failing container.
+    # wget from inside the container against the one unauthenticated route.
+    # There is deliberately no `aegis-serve healthcheck` subcommand: the
+    # binary takes no arguments and would start a second listener, which
+    # would bind-fail and mark the container unhealthy while the real
+    # service is healthy.
+    #
+    # This also proves the vault unlocked: startup fails closed if it did
+    # not, so a serving /healthz means the vault is open.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8477/healthz",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Hardening: the container never needs to write anything except its
+    # vault volume, and never needs privileges.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+volumes:
+  aegis-vault:
+
+networks:
+  aegis-internal:
+    internal: true
+    # Static subnet so agent clients can be configured against a stable
+    # address rather than a service name resolved at start time.
+    ipam:
+      config:
+        - subnet: 172.28.9.0/28

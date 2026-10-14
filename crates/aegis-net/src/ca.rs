@@ -3,6 +3,7 @@
 //! Uses Ed25519 for signing. Each node gets a keypair + certificate signed by the CA.
 //! Certificates embed the node's overlay IP, name, and groups — like Nebula's approach.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -230,7 +231,8 @@ impl NodeCertificate {
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{}.cert", self.name));
         let json = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, json)?;
+        let mut file = create_owner_only_file(&path)?;
+        file.write_all(json.as_bytes())?;
         Ok(path)
     }
 
@@ -271,6 +273,36 @@ impl NodeKeypair {
 
         Ok(path)
     }
+}
+
+/// Create (or truncate) `path` for writing with owner-only permissions (0o600).
+///
+/// The mode rides along with the `O_CREAT` call, so it is applied to a file this
+/// function creates and to nothing else. An existing path — including a symlink
+/// — is never chmod'ed, so no symlink is followed or dereferenced to set the
+/// mode. A file that already exists with a wider mode keeps it (the mode
+/// argument is ignored unless the file is created here); tightening such a file
+/// would require `set_permissions`, which resolves symlinks, so it is
+/// deliberately left to the owner of the path.
+#[cfg(unix)]
+fn create_owner_only_file(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+fn create_owner_only_file(path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)
 }
 
 #[cfg(test)]
@@ -340,5 +372,62 @@ mod tests {
         assert_eq!(cert.name, loaded.name);
         assert_eq!(cert.ip, loaded.ip);
         ca.verify(&loaded).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn node_cert_save_is_owner_only() {
+        use std::os::unix::fs::MetadataExt;
+
+        let ca = CertificateAuthority::generate("test-ca", 365).unwrap();
+        let (_node_key, node_pub) = NodeKeypair::generate();
+        let cert = ca
+            .sign_node(
+                "node1",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_pub.to_bytes(),
+                365,
+            )
+            .unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        cert.save(dir.path()).unwrap();
+
+        let mode = std::fs::metadata(dir.path().join("node1.cert"))
+            .unwrap()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600, "cert file mode was {mode:o}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn node_cert_save_does_not_change_mode_through_symlink() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let ca = CertificateAuthority::generate("test-ca", 365).unwrap();
+        let (_node_key, node_pub) = NodeKeypair::generate();
+        let cert = ca
+            .sign_node(
+                "node1",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_pub.to_bytes(),
+                365,
+            )
+            .unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target.cert");
+        let link = dir.path().join("node1.cert");
+        std::fs::write(&target, "existing").unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o644)).unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        cert.save(dir.path()).unwrap();
+
+        let mode = std::fs::symlink_metadata(&target).unwrap().mode() & 0o777;
+        assert_eq!(mode, 0o644, "symlink target mode was {mode:o}");
     }
 }
