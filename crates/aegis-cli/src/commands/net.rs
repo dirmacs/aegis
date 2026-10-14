@@ -54,7 +54,7 @@ pub struct NetInitArgs {
     #[arg(long, default_value = "aegis-mesh")]
     pub name: String,
     /// Network CIDR
-    #[arg(long, default_value = "10.42.0.0/24")]
+    #[arg(long)]
     pub cidr: String,
     /// CA certificate duration in days
     #[arg(long, default_value = "365")]

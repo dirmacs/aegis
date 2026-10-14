@@ -33,7 +33,7 @@ pub struct DiscoverArgs {
     #[arg(long)]
     pub node: String,
     /// Overlay IP
-    #[arg(long, default_value = "10.42.0.3")]
+    #[arg(long)]
     pub ip: String,
     /// Output path
     #[arg(long, default_value = "inventory.toml")]

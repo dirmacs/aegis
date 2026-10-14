@@ -232,7 +232,7 @@ action = "allow"
         let toml_str = r#"
 [network]
 name = "test"
-cidr = "10.0.0.0/24"
+cidr = "192.0.2.0/24"
 "#;
         let manifest: NetworkManifest = toml::from_str(toml_str).unwrap();
         assert_eq!(manifest.network.listen_port, 51820);
@@ -246,10 +246,10 @@ cidr = "10.0.0.0/24"
         let toml_str = r#"
 [network]
 name = "test"
-cidr = "10.0.0.0/24"
+cidr = "192.0.2.0/24"
 
 [peers.node1]
-ip = "10.0.0.1"
+ip = "192.0.2.1"
 groups = ["servers"]
 "#;
         let manifest: NetworkManifest = toml::from_str(toml_str).unwrap();
