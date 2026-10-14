@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
+use anyhow::Context as _;
 use anyhow::{Result, bail};
 use console::Style;
 
@@ -604,6 +605,16 @@ async fn up(args: NetUpArgs, ctx: &Context) -> Result<()> {
         green.apply_to("✓"),
         config_path.display()
     );
+
+    // Verify wg-quick actually installed a route for every peer AllowedIP.
+    // `wg syncconf` syncs peers without reinstalling these routes, so a
+    // config-only reconfiguration can leave the mesh unroutable; fail loudly
+    // instead of silently sending mesh traffic out the LAN default gateway.
+    let interface = manifest.network.interface.clone();
+    let allowed_ips = wg::allowed_ips_for_interface(&interface)?;
+    let route_table = wg::read_route_table(&interface)?;
+    wg::verify_allowed_ip_routes(&interface, &allowed_ips, &route_table)
+        .context("mesh route verification failed after interface bring-up")?;
 
     if args.apply_firewall {
         let peer_name = args

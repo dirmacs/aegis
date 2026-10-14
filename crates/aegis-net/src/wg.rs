@@ -274,6 +274,236 @@ pub fn interface_down(target: &str) -> Result<()> {
     })
 }
 
+/// Normalize an expected AllowedIP spelling into a canonical CIDR form.
+///
+/// Bare IP addresses (as `wg` sometimes reports for a peer) are treated as
+/// host routes, i.e. `/32` for IPv4 and `/128` for IPv6.
+pub fn normalize_allowed_ip(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    if value.contains('/') {
+        Some(value.to_string())
+    } else if value.contains(':') {
+        Some(format!("{value}/128"))
+    } else {
+        Some(format!("{value}/32"))
+    }
+}
+
+/// Inspect one line of `ip -o route show dev <iface>` output and return the
+/// destination it routes, but only when that route actually uses `iface`
+/// directly (no gateway, no other device).
+///
+/// A `via` token always disqualifies the route: that is the kernel forwarding
+/// the packet through a gateway rather than into the mesh, which is exactly the
+/// failure mode this guard exists to catch.
+fn route_destination_via_iface(iface: &str, line: &str) -> Option<String> {
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let destination = tokens[0];
+    if destination.eq_ignore_ascii_case("default") {
+        // A default route is never a mesh peer route.
+        return None;
+    }
+
+    let mut has_via = false;
+    let mut dev: Option<&str> = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        match tokens[i] {
+            "via" => has_via = true,
+            "dev" => {
+                if let Some(next) = tokens.get(i + 1) {
+                    dev = Some(*next);
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    if has_via {
+        return None;
+    }
+    if let Some(device) = dev
+        && device != iface
+    {
+        return None;
+    }
+
+    normalize_allowed_ip(destination)
+}
+
+/// Decide which of the expected mesh AllowedIPs are not actually routed via
+/// `iface` according to the supplied route-table text.
+///
+/// An empty or whitespace-only table is treated as "everything missing": a
+/// table that could not be read must never be reported as a clean mesh.
+pub fn missing_allowed_ip_routes<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> Vec<String> {
+    if route_table.trim().is_empty() {
+        return expected_allowed_ips
+            .iter()
+            .filter_map(|value| normalize_allowed_ip(value.as_ref()))
+            .collect();
+    }
+
+    let routed: std::collections::HashSet<String> = route_table
+        .lines()
+        .filter_map(|line| route_destination_via_iface(iface, line))
+        .collect();
+
+    let mut missing = Vec::new();
+    for value in expected_allowed_ips {
+        if let Some(normalized) = normalize_allowed_ip(value.as_ref())
+            && !routed.contains(&normalized)
+            && !missing.contains(&normalized)
+        {
+            missing.push(normalized);
+        }
+    }
+
+    // A table that parsed no usable routes at all cannot be considered healthy.
+    // This keeps a truncated/garbage table from turning into a vacuous pass.
+    if routed.is_empty() && !expected_allowed_ips.is_empty() {
+        for value in expected_allowed_ips {
+            if let Some(normalized) = normalize_allowed_ip(value.as_ref())
+                && !missing.contains(&normalized)
+            {
+                missing.push(normalized);
+            }
+        }
+    }
+
+    missing
+}
+
+/// Pure predicate: every expected AllowedIP is routed directly through
+/// `iface` according to `route_table`.
+pub fn allowed_ips_routed<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> bool {
+    missing_allowed_ip_routes(iface, expected_allowed_ips, route_table).is_empty()
+        && (!route_table.trim().is_empty() || expected_allowed_ips.is_empty())
+}
+
+/// Compatibility alias for the pure predicate.
+pub fn are_allowed_ips_routed<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> bool {
+    allowed_ips_routed(iface, expected_allowed_ips, route_table)
+}
+
+/// Compatibility alias for the pure predicate.
+pub fn routes_cover_allowed_ips<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> bool {
+    allowed_ips_routed(iface, expected_allowed_ips, route_table)
+}
+
+/// Compatibility alias returning the missing AllowedIPs.
+pub fn allowed_ip_route_guard_missing<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> Vec<String> {
+    missing_allowed_ip_routes(iface, expected_allowed_ips, route_table)
+}
+
+/// Fail-closed verification used by `aegis net up`: returns an error naming the
+/// missing AllowedIPs (or an unreadable route table).
+pub fn verify_allowed_ip_routes<T: AsRef<str>>(
+    iface: &str,
+    expected_allowed_ips: &[T],
+    route_table: &str,
+) -> Result<()> {
+    if route_table.trim().is_empty() {
+        anyhow::bail!(
+            "could not verify mesh routes for {iface}: route table is empty or unreadable"
+        );
+    }
+    let missing = missing_allowed_ip_routes(iface, expected_allowed_ips, route_table);
+    if !missing.is_empty() {
+        anyhow::bail!(
+            "mesh routes missing on {iface}; AllowedIPs not routed via {iface}: {}",
+            missing.join(", ")
+        );
+    }
+    Ok(())
+}
+
+/// Read the kernel route table for `iface`.
+///
+/// This shells out to `ip -o route show dev <iface>` and fails closed if the
+/// command cannot be spawned or exits non-zero.
+pub fn read_route_table(iface: &str) -> Result<String> {
+    let output = std::process::Command::new("ip")
+        .args(["-o", "route", "show", "dev", iface])
+        .output()
+        .with_context(|| format!("spawning ip route show dev {iface}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("ip route show dev {iface} failed: {}", stderr.trim());
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    if stdout.trim().is_empty() {
+        anyhow::bail!("ip route show dev {iface} returned no routes");
+    }
+    Ok(stdout)
+}
+
+/// Read the AllowedIPs that WireGuard currently has configured for `iface`.
+pub fn allowed_ips_for_interface(iface: &str) -> Result<Vec<String>> {
+    let output = std::process::Command::new("wg")
+        .args(["show", iface, "allowed-ips"])
+        .output()
+        .with_context(|| format!("spawning wg show {iface} allowed-ips"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("wg show {iface} allowed-ips failed: {}", stderr.trim());
+    }
+
+    let mut allowed = Vec::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        for token in line.split_whitespace() {
+            for item in token.split(',') {
+                let item = item.trim();
+                if item.is_empty() {
+                    continue;
+                }
+                // Skip base64 public-key tokens.
+                if (item.contains('/')
+                    || (item.contains('.') && !item.contains('='))
+                    || item.contains(':'))
+                    && let Some(normalized) = normalize_allowed_ip(item)
+                {
+                    // Avoid recording the same CIDR twice.
+                    if !allowed.contains(&normalized) {
+                        allowed.push(normalized);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(allowed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,16 +533,16 @@ mod tests {
         let toml_str = r#"
 [network]
 name = "test"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 
 [peers.vps]
-ip = "10.42.0.1"
+ip = "203.0.113.1"
 groups = ["servers"]
 lighthouse = true
 endpoint = "1.2.3.4:51820"
 
 [peers.laptop]
-ip = "10.42.0.2"
+ip = "203.0.113.2"
 groups = ["admin"]
 
 [[firewall.inbound]]
@@ -342,7 +572,7 @@ action = "allow"
         .unwrap();
 
         assert!(config.contains("[Interface]"));
-        assert!(config.contains("10.42.0.2/32"));
+        assert!(config.contains("203.0.113.2/32"));
         assert!(config.contains("[Peer]"));
         assert!(config.contains("1.2.3.4:51820"));
         assert!(config.contains("PersistentKeepalive"));
@@ -407,5 +637,123 @@ action = "allow"
             });
             assert!(err.is_err(), "expected error for target {bad:?}");
         }
+    }
+
+    #[test]
+    fn route_guard_passes_wg_quick_style_routes() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32", "203.0.113.3/32"];
+        let table = "203.0.113.2/32 dev aegis0\n203.0.113.3/32 dev aegis0 metric 100\n";
+        assert!(allowed_ips_routed(iface, &expected, table));
+        assert!(missing_allowed_ip_routes(iface, &expected, table).is_empty());
+    }
+
+    #[test]
+    fn route_guard_fails_syncconf_only() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32", "203.0.113.3/32"];
+        let table = "";
+        assert!(!allowed_ips_routed(iface, &expected, table));
+        let missing = missing_allowed_ip_routes(iface, &expected, table);
+        assert_eq!(
+            missing,
+            vec!["203.0.113.2/32".to_string(), "203.0.113.3/32".to_string()]
+        );
+    }
+
+    #[test]
+    fn route_guard_fails_route_via_other_device_or_gateway() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32"];
+        for table in [
+            "203.0.113.2/32 dev eth0",
+            "203.0.113.2/32 via 192.168.1.1 dev eth0",
+            "203.0.113.2 via 192.0.2.1 dev aegis0",
+        ] {
+            assert!(
+                !allowed_ips_routed(iface, &expected, table),
+                "table was {table:?}"
+            );
+            assert_eq!(
+                missing_allowed_ip_routes(iface, &expected, table),
+                vec!["203.0.113.2/32".to_string()]
+            );
+        }
+    }
+
+    #[test]
+    fn route_guard_handles_spelled_route_lines() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.12/32"];
+        assert!(allowed_ips_routed(
+            iface,
+            &expected,
+            "203.0.113.12 scope link\n"
+        ));
+        assert!(allowed_ips_routed(
+            iface,
+            &expected,
+            "203.0.113.12/32 dev aegis0\n"
+        ));
+        assert!(allowed_ips_routed(
+            iface,
+            &expected,
+            "203.0.113.12 dev aegis0 metric 100\n"
+        ));
+    }
+
+    #[test]
+    fn route_guard_empty_table_fails() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32"];
+        assert!(!allowed_ips_routed(iface, &expected, ""));
+        assert!(!allowed_ips_routed(iface, &expected, "   \n\t  "));
+    }
+
+    #[test]
+    fn route_guard_unreadable_table_fails() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32"];
+        // A table that parses no usable routes must not look healthy.
+        assert!(!allowed_ips_routed(iface, &expected, "not a route table"));
+        assert_eq!(
+            verify_allowed_ip_routes(iface, &expected, "not a route table")
+                .unwrap_err()
+                .to_string(),
+            "mesh routes missing on aegis0; AllowedIPs not routed via aegis0: 203.0.113.2/32"
+        );
+    }
+
+    #[test]
+    fn route_guard_does_not_require_interface_local_32() {
+        // The interface's own address is not in the expected AllowedIPs list
+        // produced by `wg show allowed-ips`, so a route table containing only
+        // peer routes still passes.
+        let iface = "aegis0";
+        let expected: [&str; 0] = [];
+        let table = "203.0.113.1/32 dev aegis0\n";
+        assert!(allowed_ips_routed(iface, &expected, table));
+    }
+
+    #[test]
+    fn route_guard_error_names_missing_allowed_ips() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32", "203.0.113.9/32"];
+        let table = "203.0.113.2/32 dev aegis0\n";
+        let err = verify_allowed_ip_routes(iface, &expected, table).unwrap_err();
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("203.0.113.9/32"),
+            "error did not name missing IP: {text}"
+        );
+        assert!(!text.contains("203.0.113.2/32 is missing".to_string().as_str()));
+    }
+
+    #[test]
+    fn route_guard_verify_fails_closed_on_empty_table() {
+        let iface = "aegis0";
+        let expected = ["203.0.113.2/32"];
+        let err = verify_allowed_ip_routes(iface, &expected, "").unwrap_err();
+        assert!(format!("{err:#}").contains("empty or unreadable"));
     }
 }
