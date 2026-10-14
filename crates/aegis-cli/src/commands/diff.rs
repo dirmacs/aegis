@@ -37,12 +37,11 @@ pub async fn run(args: DiffArgs, ctx: &Context) -> Result<()> {
 
             // For symlinks, if the link is correct there's nothing to diff
             if strategy == LinkStrategy::Symlink {
-                if target.is_symlink() {
-                    if let Ok(link) = std::fs::read_link(&target) {
-                        if link == source {
-                            continue;
-                        }
-                    }
+                if target.is_symlink()
+                    && let Ok(link) = std::fs::read_link(&target)
+                    && link == source
+                {
+                    continue;
                 }
                 if !target.exists() {
                     if !module_has_changes {

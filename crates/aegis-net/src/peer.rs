@@ -48,14 +48,14 @@ pub fn add_peer(
     }
 
     // Verify IP is within network CIDR
-    if let IpAddr::V4(v4) = ip {
-        if !manifest.network.cidr.contains(&v4) {
-            bail!(
-                "IP {} is not within network CIDR {}",
-                ip,
-                manifest.network.cidr
-            );
-        }
+    if let IpAddr::V4(v4) = ip
+        && !manifest.network.cidr.contains(&v4)
+    {
+        bail!(
+            "IP {} is not within network CIDR {}",
+            ip,
+            manifest.network.cidr
+        );
     }
 
     // Generate node keypair

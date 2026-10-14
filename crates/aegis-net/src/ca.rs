@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Duration, Utc};
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+pub use ed25519_dalek::SigningKey;
+use ed25519_dalek::{Signature, Signer, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -386,6 +387,15 @@ impl NodeKeypair {
 
         Ok(path)
     }
+
+    /// Load a node's Ed25519 private signing key (`<name>.key`) from disk.
+    pub fn load_key(path: &Path) -> Result<SigningKey> {
+        let key_bytes: [u8; 32] = std::fs::read(path)
+            .with_context(|| format!("reading {}", path.display()))?
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid node private key length"))?;
+        Ok(SigningKey::from_bytes(&key_bytes))
+    }
 }
 
 /// Create (or truncate) `path` for writing with owner-only permissions (0o600).
@@ -542,5 +552,14 @@ mod tests {
 
         let mode = std::fs::symlink_metadata(&target).unwrap().mode() & 0o777;
         assert_eq!(mode, 0o644, "symlink target mode was {mode:o}");
+    }
+
+    #[test]
+    fn node_keypair_save_and_load_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let (signing_key, verifying_key) = NodeKeypair::generate();
+        let key_path = NodeKeypair::save_key(&signing_key, dir.path(), "peer-a").unwrap();
+        let loaded = NodeKeypair::load_key(&key_path).unwrap();
+        assert_eq!(loaded.verifying_key().to_bytes(), verifying_key.to_bytes());
     }
 }

@@ -15,7 +15,7 @@
 # need extra privileges/mounts; run those on the host, not in this container.
 
 # ---- builder ---------------------------------------------------------------
-FROM rust:1.98-bookworm AS builder
+FROM rust:1.99-bookworm AS builder
 
 WORKDIR /app
 

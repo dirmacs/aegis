@@ -66,17 +66,17 @@ impl Context {
         let mut modules = Vec::new();
         for module_ref in &manifest.modules {
             // Filter by specific module name if provided
-            if let Some(name) = filter {
-                if module_ref.name != name {
-                    continue;
-                }
+            if let Some(name) = filter
+                && module_ref.name != name
+            {
+                continue;
             }
 
             // Filter by profile if one is active
-            if let Some(ref active) = active_modules {
-                if !active.contains(&module_ref.name.as_str()) {
-                    continue;
-                }
+            if let Some(ref active) = active_modules
+                && !active.contains(&module_ref.name.as_str())
+            {
+                continue;
             }
 
             let module_dir = manifest_dir.join(&module_ref.path);

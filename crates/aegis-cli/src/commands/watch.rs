@@ -81,12 +81,11 @@ pub async fn run(args: WatchArgs, ctx: &Context) -> Result<()> {
 
                 // Symlinks — check the link target is correct
                 if strategy == LinkStrategy::Symlink {
-                    if target.is_symlink() {
-                        if let Ok(link) = std::fs::read_link(&target) {
-                            if link == source {
-                                continue; // link is correct
-                            }
-                        }
+                    if target.is_symlink()
+                        && let Ok(link) = std::fs::read_link(&target)
+                        && link == source
+                    {
+                        continue; // link is correct
                     }
                     if !target.exists() {
                         drifted_files
@@ -103,10 +102,10 @@ pub async fn run(args: WatchArgs, ctx: &Context) -> Result<()> {
                     continue;
                 }
 
-                if let Ok(result) = diff_files(&source, &target) {
-                    if result.has_changes {
-                        drifted_files.push(format!("{}/{}", module.name, cfg.target));
-                    }
+                if let Ok(result) = diff_files(&source, &target)
+                    && result.has_changes
+                {
+                    drifted_files.push(format!("{}/{}", module.name, cfg.target));
                 }
             }
         }

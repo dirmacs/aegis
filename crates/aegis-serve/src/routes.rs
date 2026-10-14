@@ -170,6 +170,19 @@ where
     B: HttpBody<Data = Bytes> + Send + 'static,
     B::Error: std::error::Error + Send + Sync + 'static,
 {
+    let tags: Vec<String> = req
+        .headers()
+        .get("x-aegis-tags")
+        .and_then(|v| v.to_str().ok())
+        .map(|raw| {
+            raw.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+
     let collected = match http_body_util::BodyExt::collect(req.into_body()).await {
         Ok(collected) => collected.to_bytes(),
         Err(error) => {
@@ -184,7 +197,8 @@ where
 
     let outcome = {
         let mut vault = state.vault();
-        vault.set(key, value, &[]).and_then(|()| vault.save())
+        let tag_refs: Vec<&str> = tags.iter().map(String::as_str).collect();
+        vault.set(key, value, &tag_refs).and_then(|()| vault.save())
     };
     match outcome {
         Ok(()) => {
@@ -668,8 +682,8 @@ mod tests {
         let (node_signing, node_verifying) = NodeKeypair::generate();
         let node_cert = ca
             .sign_node(
-                "vps",
-                "10.42.0.1",
+                "peer-a",
+                "10.42.0.2",
                 &["servers".to_string()],
                 &node_verifying.to_bytes(),
                 365,
@@ -720,8 +734,8 @@ mod tests {
         let rogue_ca = CertificateAuthority::generate("rogue-ca", 365).expect("rogue ca");
         let rogue_cert = rogue_ca
             .sign_node(
-                "vps",
-                "10.42.0.1",
+                "peer-a",
+                "10.42.0.2",
                 &["servers".to_string()],
                 &node_verifying.to_bytes(),
                 365,
