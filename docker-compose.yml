@@ -3,23 +3,28 @@
 # Deliberate bind choice, and why it differs from the default:
 #
 # The binary defaults to 127.0.0.1 so an accidental host-wide exposure is
-# impossible. But Docker reaches a container through its eth0 address, not
-# its loopback, so a loopback bind inside the container would make the
-# service unreachable from any sibling container — including the agents
-# that are supposed to talk to it. So this compose file sets AEGIS_BIND to
-# 0.0.0.0 INSIDE the container's own network namespace.
+# impossible. That default is right for a service only the host itself uses,
+# and wrong for the one this estate needs: a keychain the enrolled machines
+# can read over the mesh. So this compose file binds the mesh address and
+# nothing else — not 0.0.0.0, which would also bind eth0 and the whole VNet,
+# and not loopback, which no peer could reach.
 #
-# That is safe here only because the network below is `internal: true` and
-# no port is published. Internal networks have no route to the host or the
-# internet, so the only peers that can reach this listener are containers
-# explicitly attached to this network. Remove either of those two things
-# and the wildcard bind becomes an exposure.
+# Two independent things scope that listener, and neither is sufficient
+# alone:
 #
-# There is still NO TLS. Bearer tokens and secret values cross that network
-# in cleartext. An internal Docker network is reasonable for a single host;
-# it is not a substitute for encryption once this reaches more than one
-# machine. Land mTLS before binding this anywhere non-loopback on a routable
-# network.
+#   1. The mesh firewall (`table inet aegis_aegis0`) admits exactly the
+#      enrolled peers on this port and drops everything else arriving on
+#      the mesh. It is keyed on `iifname`, so it only applies to traffic
+#      that actually came over the mesh.
+#   2. `aegis-serve` verifies an `aegis-net` Ed25519 node certificate
+#      (`X-Aegis-Cert`) signed by the mesh CA on every secrets route, and
+#      optionally a request-proof signature. A bearer token alone is no
+#      longer enough.
+#
+# The earlier arrangement — a wildcard bind inside a container on an
+# `internal: true` bridge — is gone, and deliberately: it made the vault
+# unreachable from every enrolled machine, which is the use case. A bridged
+# container cannot bind a host address at all, hence `network_mode: host`.
 
 services:
   aegis-serve:
@@ -32,6 +37,13 @@ services:
     # exits 0 — a permanently restarting "healthy-looking" no-op. The image
     # ships both binaries; pick the server one explicitly.
     entrypoint: aegis-serve
+    # HOST network, deliberately. A bridged container cannot bind an address
+    # that lives on the host, and the mesh address `aegis0` is a host address.
+    # The alternative — publishing a host port through the bridge — would put
+    # the listener in the container's own namespace, where the mesh address
+    # does not exist and the firewall rules keyed on `iifname "aegis0"` cannot
+    # reach it.
+    network_mode: host
     environment:
       # Required, fail-closed at startup. The service refuses to bind unless
       # both are present and non-empty; there is no default master password
@@ -42,12 +54,30 @@ services:
       # host file is written — which is the point: no host file, so no
       # umask-dependent mode on the host to worry about.
       AEGIS_VAULT_PATH: /data/vault.json
-      AEGIS_BIND: 0.0.0.0:8477
+      # The overlay interface's address, and ONLY that. Not 0.0.0.0, which
+      # would also bind the host's LAN address and expose the vault to the
+      # whole private network; and not loopback, which no peer could reach.
+      # The overlay address is the one interface whose inbound traffic both
+      # the mesh firewall and the node certificate already scope.
+      #
+      # Required rather than defaulted: a wrong guess here silently binds a
+      # wildcard or a loopback, and neither failure is visible from inside
+      # the container. (RFC 5737 documentation example: 203.0.113.1)
+      AEGIS_SERVE_HOST: ${AEGIS_SERVE_HOST:?set AEGIS_SERVE_HOST to your overlay interface address, e.g. 203.0.113.1}
+      AEGIS_SERVE_PORT: ${AEGIS_SERVE_PORT:-8477}
+      AEGIS_BIND: ${AEGIS_SERVE_HOST}:${AEGIS_SERVE_PORT:-8477}
+      # The mesh CA. With this set the service refuses any /api/v1/secrets*
+      # request that does not carry a node certificate signed by it — bearer
+      # tokens alone stop being sufficient, which is the whole point of
+      # binding a routable address.
+      AEGIS_CA_CERT: /etc/aegis-net/ca/ca.cert
       RUST_LOG: info
     volumes:
       - aegis-vault:/data
-    networks:
-      - aegis-internal
+      # Read-only: the service verifies certificates, it never issues them,
+      # so it has no need of the CA private key and must not be able to read
+      # it. `ca.key` stays 0600 root and is never mounted.
+      - /etc/aegis-net/ca/ca.cert:/etc/aegis-net/ca/ca.cert:ro
     restart: unless-stopped
     # Healthcheck uses the one route that needs no auth, so it also proves
     # the vault unlocked successfully — a vault that failed to open exits
@@ -68,7 +98,7 @@ services:
           "-q",
           "-O",
           "/dev/null",
-          "http://127.0.0.1:8477/healthz",
+          "http://${AEGIS_SERVE_HOST:?}:${AEGIS_SERVE_PORT:-8477}/healthz",
         ]
       interval: 30s
       timeout: 5s
@@ -82,7 +112,3 @@ services:
 
 volumes:
   aegis-vault:
-
-networks:
-  aegis-internal:
-    internal: true
