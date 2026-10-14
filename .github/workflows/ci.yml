@@ -14,7 +14,7 @@ env:
 jobs:
   check:
     name: Check
-    runs-on: [self-hosted, linux, arm64, dirmacs-ci]
+    runs-on: [self-hosted, linux, arm64]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: [self-hosted, linux, arm64, dirmacs-ci]
+    runs-on: [self-hosted, linux, arm64]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: [self-hosted, linux, arm64, dirmacs-ci]
+    runs-on: [self-hosted, linux, arm64]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
 
   fmt:
     name: Format
-    runs-on: [self-hosted, linux, arm64, dirmacs-ci]
+    runs-on: [self-hosted, linux, arm64]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
   #   tested functions drop the worst cluster).
   coverage-crap:
     name: coverage + CRAP
-    runs-on: [self-hosted, linux, arm64, dirmacs-ci]
+    runs-on: [self-hosted, linux, arm64]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 40
     env:
