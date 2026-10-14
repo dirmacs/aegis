@@ -21,12 +21,10 @@ pub async fn run(args: PushArgs, ctx: &Context) -> Result<()> {
     let (manifest, manifest_dir) = ctx.load_manifest()?;
     let bold = Style::new().bold();
     let green = Style::new().green().bold();
-    let red = Style::new().red().bold();
 
-    let node = manifest
-        .nodes
-        .get(&args.node)
-        .ok_or_else(|| anyhow::anyhow!("unknown node '{}' — check [nodes] in aegis.toml", args.node))?;
+    let node = manifest.nodes.get(&args.node).ok_or_else(|| {
+        anyhow::anyhow!("unknown node '{}' — check [nodes] in aegis.toml", args.node)
+    })?;
 
     let target = SshTarget {
         user: node.user.clone(),
@@ -49,10 +47,18 @@ pub async fn run(args: PushArgs, ctx: &Context) -> Result<()> {
     );
 
     if ctx.dry_run {
-        println!("  [dry-run] would rsync {} → {}:{}", manifest_dir.display(), target.display(), remote_path);
+        println!(
+            "  [dry-run] would rsync {} → {}:{}",
+            manifest_dir.display(),
+            target.display(),
+            remote_path
+        );
         if !args.sync_only {
             let cmd = if args.bootstrap { "bootstrap" } else { "link" };
-            println!("  [dry-run] would run: aegis --profile {} {}", node.profile, cmd);
+            println!(
+                "  [dry-run] would run: aegis --profile {} {}",
+                node.profile, cmd
+            );
         }
         return Ok(());
     }
@@ -87,7 +93,12 @@ pub async fn run(args: PushArgs, ctx: &Context) -> Result<()> {
     let status = target.exec_interactive(&remote_cmd)?;
 
     if status.success() {
-        println!("\n{} Push + {} complete on {}", green.apply_to("✓"), cmd, args.node);
+        println!(
+            "\n{} Push + {} complete on {}",
+            green.apply_to("✓"),
+            cmd,
+            args.node
+        );
     } else {
         bail!(
             "aegis {} failed on {} (exit {})",

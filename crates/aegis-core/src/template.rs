@@ -6,10 +6,7 @@ use tera::Tera;
 use tracing::debug;
 
 /// Render a template file with the given variables.
-pub fn render_file(
-    source: &Path,
-    variables: &HashMap<String, String>,
-) -> Result<String> {
+pub fn render_file(source: &Path, variables: &HashMap<String, String>) -> Result<String> {
     let content = std::fs::read_to_string(source)
         .with_context(|| format!("reading template {}", source.display()))?;
     render_string(&content, variables)
@@ -17,10 +14,7 @@ pub fn render_file(
 }
 
 /// Render a template string with the given variables.
-pub fn render_string(
-    template: &str,
-    variables: &HashMap<String, String>,
-) -> Result<String> {
+pub fn render_string(template: &str, variables: &HashMap<String, String>) -> Result<String> {
     let mut tera = Tera::default();
     tera.add_raw_template("__inline__", template)
         .context("compiling template")?;
@@ -31,7 +25,9 @@ pub fn render_string(
     }
 
     debug!("rendering template with {} variables", variables.len());
-    let rendered = tera.render("__inline__", &ctx).context("rendering template")?;
+    let rendered = tera
+        .render("__inline__", &ctx)
+        .context("rendering template")?;
     Ok(rendered)
 }
 

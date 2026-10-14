@@ -4,7 +4,6 @@ use anyhow::Result;
 use console::Style;
 
 use aegis_core::inventory::{self, NodeInventory};
-use aegis_net::config::NetworkManifest;
 
 use super::Context;
 
@@ -96,7 +95,10 @@ async fn discover(args: DiscoverArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
 
     if ctx.dry_run {
-        println!("  [dry-run] Would discover environment for node '{}'", args.node);
+        println!(
+            "  [dry-run] Would discover environment for node '{}'",
+            args.node
+        );
         return Ok(());
     }
 
@@ -106,8 +108,19 @@ async fn discover(args: DiscoverArgs, ctx: &Context) -> Result<()> {
     let path = PathBuf::from(&args.output);
     inv.save(&path)?;
 
-    println!("  {} Node: {} ({})", green.apply_to("✓"), inv.node, inv.overlay_ip);
-    println!("  {} System: {} {} {}", green.apply_to("✓"), inv.system.hostname, inv.system.os, inv.system.arch);
+    println!(
+        "  {} Node: {} ({})",
+        green.apply_to("✓"),
+        inv.node,
+        inv.overlay_ip
+    );
+    println!(
+        "  {} System: {} {} {}",
+        green.apply_to("✓"),
+        inv.system.hostname,
+        inv.system.os,
+        inv.system.arch
+    );
     println!("  {} Tools: {} found", green.apply_to("✓"), inv.tools.len());
     println!("  {} Repos: {} found", green.apply_to("✓"), inv.repos.len());
     println!("  {} Saved: {}", green.apply_to("✓"), path.display());
@@ -120,8 +133,14 @@ async fn show(args: ShowArgs) -> Result<()> {
     let bold = Style::new().bold();
     let dim = Style::new().dim();
 
-    println!("{}", bold.apply_to(format!("Node: {} ({})", inv.node, inv.overlay_ip)));
-    println!("  {} {} {}", inv.system.hostname, inv.system.os, inv.system.arch);
+    println!(
+        "{}",
+        bold.apply_to(format!("Node: {} ({})", inv.node, inv.overlay_ip))
+    );
+    println!(
+        "  {} {} {}",
+        inv.system.hostname, inv.system.os, inv.system.arch
+    );
     println!("  Snapshot: {}", inv.timestamp);
     println!();
 
@@ -172,21 +191,31 @@ async fn push(args: PushArgs, ctx: &Context) -> Result<()> {
     let remote_path = format!("{}/{}.toml", args.remote_dir, inv.node);
 
     if ctx.dry_run {
-        println!("  [dry-run] Would push {} → {}:{}", args.file, args.to, remote_path);
+        println!(
+            "  [dry-run] Would push {} → {}:{}",
+            args.file, args.to, remote_path
+        );
         return Ok(());
     }
 
     // SCP the file
     let status = std::process::Command::new("scp")
         .args([
-            "-o", "ConnectTimeout=10",
+            "-o",
+            "ConnectTimeout=10",
             &args.file,
             &format!("{}:{}", args.to, remote_path),
         ])
         .status()?;
 
     if status.success() {
-        println!("  {} Pushed {} → {}:{}", green.apply_to("✓"), inv.node, args.to, remote_path);
+        println!(
+            "  {} Pushed {} → {}:{}",
+            green.apply_to("✓"),
+            inv.node,
+            args.to,
+            remote_path
+        );
     } else {
         anyhow::bail!("SCP failed");
     }
@@ -208,6 +237,12 @@ async fn pull(args: PullArgs) -> Result<()> {
     let output = PathBuf::from(&args.output);
     inv.save(&output)?;
 
-    println!("  {} Pulled {} ({}) → {}", green.apply_to("✓"), inv.node, inv.overlay_ip, output.display());
+    println!(
+        "  {} Pulled {} ({}) → {}",
+        green.apply_to("✓"),
+        inv.node,
+        inv.overlay_ip,
+        output.display()
+    );
     Ok(())
 }

@@ -20,10 +20,9 @@ pub async fn run(args: RemoteArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
     let red = Style::new().red().bold();
 
-    let node = manifest
-        .nodes
-        .get(&args.node)
-        .ok_or_else(|| anyhow::anyhow!("unknown node '{}' — check [nodes] in aegis.toml", args.node))?;
+    let node = manifest.nodes.get(&args.node).ok_or_else(|| {
+        anyhow::anyhow!("unknown node '{}' — check [nodes] in aegis.toml", args.node)
+    })?;
 
     let target = SshTarget {
         user: node.user.clone(),
@@ -59,14 +58,22 @@ pub async fn run(args: RemoteArgs, ctx: &Context) -> Result<()> {
     );
 
     if ctx.dry_run {
-        println!("  [dry-run] would run: ssh {} '{}'", target.display(), remote_cmd);
+        println!(
+            "  [dry-run] would run: ssh {} '{}'",
+            target.display(),
+            remote_cmd
+        );
         return Ok(());
     }
 
     let status = target.exec_interactive(&remote_cmd)?;
 
     if status.success() {
-        println!("\n{} Remote command completed on {}", green.apply_to("✓"), args.node);
+        println!(
+            "\n{} Remote command completed on {}",
+            green.apply_to("✓"),
+            args.node
+        );
     } else {
         println!(
             "\n{} Remote command failed on {} (exit {})",

@@ -64,8 +64,7 @@ async fn generate(args: GenerateArgs, ctx: &Context) -> Result<()> {
         .with_context(|| format!("reading {}", input_path.display()))?;
 
     // Parse opencode section
-    let opencode_input = OpencodeInput::load(&input_path)
-        .context("parsing opencode config")?;
+    let opencode_input = OpencodeInput::load(&input_path).context("parsing opencode config")?;
 
     // Generate opencode.json
     let opencode_json = opencode_input.generate()?;
@@ -87,8 +86,8 @@ async fn generate(args: GenerateArgs, ctx: &Context) -> Result<()> {
 
     // Parse and generate oh-my-opencode section if present
     if content.contains("[oh_my_opencode") {
-        let omoc_input = OhMyOpencodeInput::load(&input_path)
-            .context("parsing oh-my-opencode config")?;
+        let omoc_input =
+            OhMyOpencodeInput::load(&input_path).context("parsing oh-my-opencode config")?;
         let omoc_json = omoc_input.generate(&opencode_input.models)?;
         let omoc_str = oh_my_opencode::to_json_string(&omoc_json)?;
 
@@ -98,11 +97,7 @@ async fn generate(args: GenerateArgs, ctx: &Context) -> Result<()> {
             println!("{omoc_str}");
         } else {
             std::fs::write(&omoc_out, &omoc_str)?;
-            println!(
-                "{} Generated {}",
-                green.apply_to("✓"),
-                omoc_out.display()
-            );
+            println!("{} Generated {}", green.apply_to("✓"), omoc_out.display());
         }
     }
 

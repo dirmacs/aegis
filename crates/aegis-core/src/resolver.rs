@@ -13,9 +13,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use crate::package::InstallMethod;
 
@@ -57,20 +57,30 @@ impl SystemContext {
         let distro = detect_distro();
 
         let mut available_managers = Vec::new();
-        for mgr in &["apt-get", "scoop", "winget", "brew", "cargo", "snap", "pip3", "npm"] {
+        for mgr in &[
+            "apt-get", "scoop", "winget", "brew", "cargo", "snap", "pip3", "npm",
+        ] {
             if which::which(mgr).is_ok() {
                 available_managers.push(mgr.to_string());
             }
         }
 
         let mut installed_tools = Vec::new();
-        for tool in &["git", "curl", "wget", "python3", "node", "cargo", "go", "docker"] {
+        for tool in &[
+            "git", "curl", "wget", "python3", "node", "cargo", "go", "docker",
+        ] {
             if which::which(tool).is_ok() {
                 installed_tools.push(tool.to_string());
             }
         }
 
-        Self { os, arch, distro, available_managers, installed_tools }
+        Self {
+            os,
+            arch,
+            distro,
+            available_managers,
+            installed_tools,
+        }
     }
 }
 
@@ -128,7 +138,12 @@ fn cache_path() -> PathBuf {
 }
 
 fn cache_key(package: &str) -> String {
-    format!("{}:{}:{}", package, std::env::consts::OS, std::env::consts::ARCH)
+    format!(
+        "{}:{}:{}",
+        package,
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    )
 }
 
 /// Detect available package managers on this system.
@@ -156,11 +171,10 @@ pub fn agent_resolve(
     sys: &SystemContext,
     previous_error: Option<&str>,
 ) -> Option<ResolvedInstall> {
-    let ollama_url = std::env::var("AEGIS_OLLAMA_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url =
+        std::env::var("AEGIS_OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let model = std::env::var("AEGIS_RESOLVE_MODEL")
-        .unwrap_or_else(|_| "qwen3.5:0.8b".to_string());
+    let model = std::env::var("AEGIS_RESOLVE_MODEL").unwrap_or_else(|_| "qwen3.5:0.8b".to_string());
 
     let retry_context = if let Some(err) = previous_error {
         format!(
@@ -222,11 +236,18 @@ COMMAND: sudo apt-get install -y fd-find"#,
 
     let output = Command::new("curl")
         .args([
-            "-s", "--connect-timeout", "5", "--max-time", "60",
-            "-X", "POST",
+            "-s",
+            "--connect-timeout",
+            "5",
+            "--max-time",
+            "60",
+            "-X",
+            "POST",
             &format!("{ollama_url}/api/generate"),
-            "-H", "Content-Type: application/json",
-            "-d", &body.to_string(),
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            &body.to_string(),
         ])
         .output()
         .ok()?;
@@ -310,7 +331,10 @@ pub fn resolve(
 ) -> Option<ResolvedInstall> {
     // 1. Check cache (learned from previous LLM resolutions)
     if let Some(cached) = cache.get(package) {
-        info!("cache hit for '{package}' → {:?} ({})", cached.method, cached.manager_package);
+        info!(
+            "cache hit for '{package}' → {:?} ({})",
+            cached.method, cached.manager_package
+        );
         return Some(ResolvedInstall {
             source: ResolutionSource::Cache,
             ..cached.clone()
@@ -388,7 +412,11 @@ fn detect_distro() -> String {
             content
                 .lines()
                 .find(|l| l.starts_with("PRETTY_NAME="))
-                .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string())
+                .map(|l| {
+                    l.trim_start_matches("PRETTY_NAME=")
+                        .trim_matches('"')
+                        .to_string()
+                })
         })
         .unwrap_or_else(|| "Linux".to_string())
 }

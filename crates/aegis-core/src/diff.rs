@@ -5,10 +5,10 @@ use similar::{ChangeTag, TextDiff};
 
 /// Generate a unified diff between two files.
 pub fn diff_files(source: &Path, target: &Path) -> Result<DiffResult> {
-    let source_content = std::fs::read_to_string(source)
-        .with_context(|| format!("reading {}", source.display()))?;
-    let target_content = std::fs::read_to_string(target)
-        .with_context(|| format!("reading {}", target.display()))?;
+    let source_content =
+        std::fs::read_to_string(source).with_context(|| format!("reading {}", source.display()))?;
+    let target_content =
+        std::fs::read_to_string(target).with_context(|| format!("reading {}", target.display()))?;
 
     Ok(diff_strings(
         &source_content,

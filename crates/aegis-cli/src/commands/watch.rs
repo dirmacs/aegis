@@ -33,7 +33,11 @@ pub async fn run(args: WatchArgs, ctx: &Context) -> Result<()> {
         "{} every {}s{}{}",
         bold.apply_to("Watching for config drift"),
         args.interval,
-        if args.auto_sync { " [auto-sync on]" } else { "" },
+        if args.auto_sync {
+            " [auto-sync on]"
+        } else {
+            ""
+        },
         if args.max_iterations > 0 {
             format!(" [max {} iterations]", args.max_iterations)
         } else {
@@ -53,12 +57,16 @@ pub async fn run(args: WatchArgs, ctx: &Context) -> Result<()> {
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
-            format!("{:02}:{:02}:{:02}", (secs / 3600) % 24, (secs / 60) % 60, secs % 60)
+            format!(
+                "{:02}:{:02}:{:02}",
+                (secs / 3600) % 24,
+                (secs / 60) % 60,
+                secs % 60
+            )
         };
 
         let (manifest, manifest_dir) = ctx.load_manifest()?;
-        let modules =
-            ctx.load_modules(&manifest, &manifest_dir, args.module.as_deref())?;
+        let modules = ctx.load_modules(&manifest, &manifest_dir, args.module.as_deref())?;
 
         let mut drifted_files: Vec<String> = Vec::new();
 
@@ -81,7 +89,8 @@ pub async fn run(args: WatchArgs, ctx: &Context) -> Result<()> {
                         }
                     }
                     if !target.exists() {
-                        drifted_files.push(format!("{}/{} (not deployed)", module.name, cfg.target));
+                        drifted_files
+                            .push(format!("{}/{} (not deployed)", module.name, cfg.target));
                     } else {
                         drifted_files.push(format!("{}/{} (wrong link)", module.name, cfg.target));
                     }

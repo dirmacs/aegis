@@ -48,10 +48,7 @@ impl OhMyOpencodeInput {
     /// Generate the oh-my-opencode.json output.
     ///
     /// `models` is needed to resolve model keys to full `provider/model_id` format.
-    pub fn generate(
-        &self,
-        models: &HashMap<String, ModelInput>,
-    ) -> Result<OhMyOpencodeJson> {
+    pub fn generate(&self, models: &HashMap<String, ModelInput>) -> Result<OhMyOpencodeJson> {
         let agents = self.build_agents(models)?;
         let categories = self.build_categories(models)?;
 
@@ -95,10 +92,7 @@ impl OhMyOpencodeInput {
 
         for (name, input) in &self.categories {
             let full_model = resolve_model_ref(&input.model, models)?;
-            categories.insert(
-                name.clone(),
-                CategoryJson { model: full_model },
-            );
+            categories.insert(name.clone(), CategoryJson { model: full_model });
         }
 
         Ok(categories)
@@ -106,10 +100,7 @@ impl OhMyOpencodeInput {
 }
 
 /// Resolve a model key to the full `provider/model_id` string.
-fn resolve_model_ref(
-    model_key: &str,
-    models: &HashMap<String, ModelInput>,
-) -> Result<String> {
+fn resolve_model_ref(model_key: &str, models: &HashMap<String, ModelInput>) -> Result<String> {
     if let Some(model) = models.get(model_key) {
         Ok(format!("{}/{}", model.provider, model.model_id))
     } else if model_key.contains('/') {

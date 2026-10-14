@@ -28,7 +28,10 @@ pub async fn run(args: EnforceArgs, ctx: &Context) -> Result<()> {
     let plan = enforce::plan_remediation(&modules, manifest.aegis.strategy)?;
 
     if plan.is_clean() {
-        println!("{} System is in compliance — no actions needed", green.apply_to("✓"));
+        println!(
+            "{} System is in compliance — no actions needed",
+            green.apply_to("✓")
+        );
         return Ok(());
     }
 
@@ -36,12 +39,18 @@ pub async fn run(args: EnforceArgs, ctx: &Context) -> Result<()> {
     println!(
         "{} Remediation plan: {} install(s), {} deploy(s), {} repair(s)\n",
         bold.apply_to("▸"),
-        installs, deploys, repairs,
+        installs,
+        deploys,
+        repairs,
     );
 
     for action in &plan.actions {
         match action {
-            Action::InstallPackage { module, package, method } => {
+            Action::InstallPackage {
+                module,
+                package,
+                method,
+            } => {
                 println!(
                     "  {} {} → install {} {}",
                     yellow.apply_to("⚡"),
@@ -70,7 +79,10 @@ pub async fn run(args: EnforceArgs, ctx: &Context) -> Result<()> {
     }
 
     if !args.apply {
-        println!("\n{}", dim.apply_to("Run with --apply to execute this plan"));
+        println!(
+            "\n{}",
+            dim.apply_to("Run with --apply to execute this plan")
+        );
         return Ok(());
     }
 
@@ -78,7 +90,10 @@ pub async fn run(args: EnforceArgs, ctx: &Context) -> Result<()> {
     let (ok, fail) = enforce::apply_remediation(&plan, &modules, ctx.dry_run)?;
 
     if fail == 0 {
-        println!("\n{} Enforcement complete — {ok} action(s) applied", green.apply_to("✓"));
+        println!(
+            "\n{} Enforcement complete — {ok} action(s) applied",
+            green.apply_to("✓")
+        );
     } else {
         println!(
             "\n{} Enforcement finished — {ok} ok, {fail} failed",

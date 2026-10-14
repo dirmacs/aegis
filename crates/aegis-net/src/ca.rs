@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Duration, Utc};
-use ed25519_dalek::{SigningKey, VerifyingKey, Signer, Signature, Verifier};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// A certificate authority.
 #[derive(Debug)]
@@ -70,7 +70,11 @@ impl CertificateAuthority {
             fingerprint,
         };
 
-        tracing::info!("Generated CA '{}' (expires {})", name, expires.format("%Y-%m-%d"));
+        tracing::info!(
+            "Generated CA '{}' (expires {})",
+            name,
+            expires.format("%Y-%m-%d")
+        );
 
         Ok(Self {
             signing_key,
@@ -116,7 +120,10 @@ impl CertificateAuthority {
 
         tracing::info!(
             "Signed cert for '{}' ({}) groups={:?} expires={}",
-            name, ip, groups, expires.format("%Y-%m-%d")
+            name,
+            ip,
+            groups,
+            expires.format("%Y-%m-%d")
         );
 
         Ok(cert)
@@ -133,10 +140,14 @@ impl CertificateAuthority {
         }
 
         let payload = cert.signing_payload()?;
-        let sig_bytes: [u8; 64] = cert.signature.clone().try_into()
+        let sig_bytes: [u8; 64] = cert
+            .signature
+            .clone()
+            .try_into()
             .map_err(|_| anyhow::anyhow!("invalid signature length"))?;
         let signature = Signature::from_bytes(&sig_bytes);
-        self.verifying_key.verify(&payload, &signature)
+        self.verifying_key
+            .verify(&payload, &signature)
             .map_err(|e| anyhow::anyhow!("signature verification failed: {e}"))?;
 
         Ok(())
@@ -225,10 +236,10 @@ impl NodeCertificate {
 
     /// Load node cert from disk.
     pub fn load(path: &Path) -> Result<Self> {
-        let json = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let cert: Self = serde_json::from_str(&json)
-            .with_context(|| format!("parsing {}", path.display()))?;
+        let json =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let cert: Self =
+            serde_json::from_str(&json).with_context(|| format!("parsing {}", path.display()))?;
         Ok(cert)
     }
 
@@ -270,14 +281,18 @@ mod tests {
     fn ca_generate_and_sign() {
         let ca = CertificateAuthority::generate("test-ca", 365).unwrap();
 
-        let (node_key, node_pub) = NodeKeypair::generate();
-        let cert = ca.sign_node(
-            "test-node",
-            "10.42.0.1",
-            &["servers".to_string()],
-            &node_pub.to_bytes(),
-            365,
-        ).unwrap();
+        // Only the public key is needed here to sign the cert; the node's
+        // private signing key is not exercised by this issuance test.
+        let (_node_key, node_pub) = NodeKeypair::generate();
+        let cert = ca
+            .sign_node(
+                "test-node",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_pub.to_bytes(),
+                365,
+            )
+            .unwrap();
 
         assert_eq!(cert.name, "test-node");
         assert_eq!(cert.ip, "10.42.0.1");
@@ -308,13 +323,15 @@ mod tests {
     fn node_cert_save_load() {
         let ca = CertificateAuthority::generate("test-ca", 365).unwrap();
         let (_node_key, node_pub) = NodeKeypair::generate();
-        let cert = ca.sign_node(
-            "node1",
-            "10.42.0.1",
-            &["servers".to_string()],
-            &node_pub.to_bytes(),
-            365,
-        ).unwrap();
+        let cert = ca
+            .sign_node(
+                "node1",
+                "10.42.0.1",
+                &["servers".to_string()],
+                &node_pub.to_bytes(),
+                365,
+            )
+            .unwrap();
 
         let dir = tempfile::tempdir().unwrap();
         cert.save(dir.path()).unwrap();

@@ -42,10 +42,7 @@ fn install_from_git(tool: &ToolEntry, dry_run: bool) -> Result<()> {
     let args = vec!["install", "--git", &tool.git_repo];
 
     if dry_run {
-        info!(
-            "[dry-run] would run: cargo {}",
-            args.join(" ")
-        );
+        info!("[dry-run] would run: cargo {}", args.join(" "));
         return Ok(());
     }
 
@@ -56,10 +53,7 @@ fn install_from_git(tool: &ToolEntry, dry_run: bool) -> Result<()> {
         .with_context(|| format!("running cargo install --git {}", tool.git_repo))?;
 
     if !status.success() {
-        bail!(
-            "cargo install --git {} failed",
-            tool.git_repo
-        );
+        bail!("cargo install --git {} failed", tool.git_repo);
     }
     Ok(())
 }

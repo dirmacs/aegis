@@ -50,8 +50,8 @@ async fn install(args: InstallArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
 
     if let Some(ref name) = args.tool {
-        let tool = registry::find_tool(name)
-            .ok_or_else(|| anyhow::anyhow!("unknown tool: {name}"))?;
+        let tool =
+            registry::find_tool(name).ok_or_else(|| anyhow::anyhow!("unknown tool: {name}"))?;
         installer::install_tool(&tool, args.from_source, ctx.dry_run).await?;
         println!("{} Installed {name}", green.apply_to("✓"));
     } else {
@@ -89,10 +89,7 @@ async fn status(_ctx: &Context) -> Result<()> {
             red.apply_to("✗")
         };
         let version = tool.version.as_deref().unwrap_or("not installed");
-        let path = tool
-            .binary_path
-            .as_deref()
-            .unwrap_or("—");
+        let path = tool.binary_path.as_deref().unwrap_or("—");
         println!("  {icon} {:<12} {version}", tool.name);
         if tool.installed {
             println!("    {}", Style::new().dim().apply_to(path));
@@ -111,8 +108,8 @@ async fn update(args: UpdateArgs, ctx: &Context) -> Result<()> {
     let green = Style::new().green().bold();
 
     if let Some(ref name) = args.tool {
-        let tool = registry::find_tool(name)
-            .ok_or_else(|| anyhow::anyhow!("unknown tool: {name}"))?;
+        let tool =
+            registry::find_tool(name).ok_or_else(|| anyhow::anyhow!("unknown tool: {name}"))?;
         installer::update_tool(&tool, ctx.dry_run).await?;
         println!("{} Updated {name}", green.apply_to("✓"));
     } else {

@@ -70,15 +70,9 @@ pub async fn run(args: BootstrapArgs, ctx: &Context) -> Result<()> {
         pb.finish_and_clear();
 
         if pkg_fail > 0 {
-            println!(
-                "  {} {pkg_ok} ok, {pkg_fail} failed",
-                red.apply_to("!")
-            );
+            println!("  {} {pkg_ok} ok, {pkg_fail} failed", red.apply_to("!"));
         } else {
-            println!(
-                "  {} {pkg_ok} package(s) checked",
-                green.apply_to("✓")
-            );
+            println!("  {} {pkg_ok} package(s) checked", green.apply_to("✓"));
         }
         println!();
     }

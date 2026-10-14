@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::config::{ConfigMapping, deploy_config};
-use crate::manifest::{LinkStrategy, Manifest};
+use crate::config::deploy_config;
+use crate::manifest::LinkStrategy;
 use crate::module::Module;
 use crate::package::PackageStatus;
 
@@ -44,9 +44,21 @@ impl RemediationPlan {
     }
 
     pub fn summary(&self) -> (usize, usize, usize) {
-        let installs = self.actions.iter().filter(|a| matches!(a, Action::InstallPackage { .. })).count();
-        let deploys = self.actions.iter().filter(|a| matches!(a, Action::DeployConfig { .. })).count();
-        let repairs = self.actions.iter().filter(|a| matches!(a, Action::RepairDrift { .. })).count();
+        let installs = self
+            .actions
+            .iter()
+            .filter(|a| matches!(a, Action::InstallPackage { .. }))
+            .count();
+        let deploys = self
+            .actions
+            .iter()
+            .filter(|a| matches!(a, Action::DeployConfig { .. }))
+            .count();
+        let repairs = self
+            .actions
+            .iter()
+            .filter(|a| matches!(a, Action::RepairDrift { .. }))
+            .count();
         (installs, deploys, repairs)
     }
 }
@@ -120,7 +132,11 @@ pub fn apply_remediation(
 
     for action in &plan.actions {
         match action {
-            Action::InstallPackage { module: mod_name, package: pkg_name, .. } => {
+            Action::InstallPackage {
+                module: mod_name,
+                package: pkg_name,
+                ..
+            } => {
                 // Find the package spec from the module
                 let pkg = modules
                     .iter()
@@ -137,16 +153,24 @@ pub fn apply_remediation(
                     }
                 }
             }
-            Action::DeployConfig { source, target, strategy, .. }
-            | Action::RepairDrift { source, target, strategy, .. } => {
-                match deploy_config(source, target, *strategy, dry_run) {
-                    Ok(()) => ok += 1,
-                    Err(e) => {
-                        tracing::error!("failed to deploy {}: {e}", target.display());
-                        fail += 1;
-                    }
-                }
+            Action::DeployConfig {
+                source,
+                target,
+                strategy,
+                ..
             }
+            | Action::RepairDrift {
+                source,
+                target,
+                strategy,
+                ..
+            } => match deploy_config(source, target, *strategy, dry_run) {
+                Ok(()) => ok += 1,
+                Err(e) => {
+                    tracing::error!("failed to deploy {}: {e}", target.display());
+                    fail += 1;
+                }
+            },
         }
     }
 

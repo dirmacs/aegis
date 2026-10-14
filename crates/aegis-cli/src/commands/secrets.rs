@@ -65,11 +65,9 @@ pub async fn run(args: SecretsArgs, _ctx: &super::Context) -> Result<()> {
         SecretsCommand::Set { key, value, tags } => {
             let value = match value {
                 Some(v) => v,
-                None => {
-                    dialoguer::Password::new()
-                        .with_prompt(format!("Value for '{}'", key))
-                        .interact()?
-                }
+                None => dialoguer::Password::new()
+                    .with_prompt(format!("Value for '{}'", key))
+                    .interact()?,
             };
             let tag_refs: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
             store.set(&key, &value, &tag_refs)?;
@@ -107,7 +105,7 @@ pub async fn run(args: SecretsArgs, _ctx: &super::Context) -> Result<()> {
 
         SecretsCommand::Export { key, env_name } => {
             let value = store.get(&key)?;
-            let env = env_name.unwrap_or_else(|| key.to_uppercase().replace('-', "_").replace('.', "_"));
+            let env = env_name.unwrap_or_else(|| key.to_uppercase().replace(['-', '.'], "_"));
             println!("{}={}", env, value);
         }
     }

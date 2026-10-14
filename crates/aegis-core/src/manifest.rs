@@ -117,7 +117,10 @@ impl Manifest {
     }
 
     /// Get the active profile, falling back to default_profile or the first defined profile.
-    pub fn active_profile<'a>(&'a self, override_name: Option<&'a str>) -> Option<(&'a str, &'a Profile)> {
+    pub fn active_profile<'a>(
+        &'a self,
+        override_name: Option<&'a str>,
+    ) -> Option<(&'a str, &'a Profile)> {
         if let Some(name) = override_name {
             return self.profiles.get(name).map(|p| (name, p));
         }

@@ -7,7 +7,6 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// A complete snapshot of a node's environment.
@@ -103,22 +102,19 @@ pub struct InventoryDiff {
 impl NodeInventory {
     /// Save inventory to a TOML file.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)
-            .context("serializing inventory")?;
+        let content = toml::to_string_pretty(self).context("serializing inventory")?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(path, content)
-            .with_context(|| format!("writing {}", path.display()))?;
+        std::fs::write(path, content).with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
 
     /// Load inventory from a TOML file.
     pub fn load(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        toml::from_str(&content)
-            .with_context(|| format!("parsing {}", path.display()))
+        let content =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        toml::from_str(&content).with_context(|| format!("parsing {}", path.display()))
     }
 
     /// Diff two inventories.
@@ -133,14 +129,46 @@ impl NodeInventory {
         InventoryDiff {
             node_a: self.node.clone(),
             node_b: other.node.clone(),
-            tools_only_a: a_tools.iter().filter(|t| !b_tools.contains(t)).cloned().collect(),
-            tools_only_b: b_tools.iter().filter(|t| !a_tools.contains(t)).cloned().collect(),
-            tools_both: a_tools.iter().filter(|t| b_tools.contains(t)).cloned().collect(),
-            repos_only_a: a_repos.iter().filter(|r| !b_repos.contains(r)).cloned().collect(),
-            repos_only_b: b_repos.iter().filter(|r| !a_repos.contains(r)).cloned().collect(),
-            repos_both: a_repos.iter().filter(|r| b_repos.contains(r)).cloned().collect(),
-            services_only_a: a_services.iter().filter(|s| !b_services.contains(s)).cloned().collect(),
-            services_only_b: b_services.iter().filter(|s| !a_services.contains(s)).cloned().collect(),
+            tools_only_a: a_tools
+                .iter()
+                .filter(|t| !b_tools.contains(t))
+                .cloned()
+                .collect(),
+            tools_only_b: b_tools
+                .iter()
+                .filter(|t| !a_tools.contains(t))
+                .cloned()
+                .collect(),
+            tools_both: a_tools
+                .iter()
+                .filter(|t| b_tools.contains(t))
+                .cloned()
+                .collect(),
+            repos_only_a: a_repos
+                .iter()
+                .filter(|r| !b_repos.contains(r))
+                .cloned()
+                .collect(),
+            repos_only_b: b_repos
+                .iter()
+                .filter(|r| !a_repos.contains(r))
+                .cloned()
+                .collect(),
+            repos_both: a_repos
+                .iter()
+                .filter(|r| b_repos.contains(r))
+                .cloned()
+                .collect(),
+            services_only_a: a_services
+                .iter()
+                .filter(|s| !b_services.contains(s))
+                .cloned()
+                .collect(),
+            services_only_b: b_services
+                .iter()
+                .filter(|s| !a_services.contains(s))
+                .cloned()
+                .collect(),
         }
     }
 }
@@ -150,18 +178,34 @@ pub fn print_diff(diff: &InventoryDiff) {
     println!("Inventory diff: {} ↔ {}\n", diff.node_a, diff.node_b);
 
     println!("Tools:");
-    for t in &diff.tools_both { println!("  = {}", t); }
-    for t in &diff.tools_only_a { println!("  + {} (only on {})", t, diff.node_a); }
-    for t in &diff.tools_only_b { println!("  + {} (only on {})", t, diff.node_b); }
+    for t in &diff.tools_both {
+        println!("  = {}", t);
+    }
+    for t in &diff.tools_only_a {
+        println!("  + {} (only on {})", t, diff.node_a);
+    }
+    for t in &diff.tools_only_b {
+        println!("  + {} (only on {})", t, diff.node_b);
+    }
 
     println!("\nRepos:");
-    for r in &diff.repos_both { println!("  = {}", r); }
-    for r in &diff.repos_only_a { println!("  + {} (only on {})", r, diff.node_a); }
-    for r in &diff.repos_only_b { println!("  + {} (only on {})", r, diff.node_b); }
+    for r in &diff.repos_both {
+        println!("  = {}", r);
+    }
+    for r in &diff.repos_only_a {
+        println!("  + {} (only on {})", r, diff.node_a);
+    }
+    for r in &diff.repos_only_b {
+        println!("  + {} (only on {})", r, diff.node_b);
+    }
 
     println!("\nServices:");
-    for s in &diff.services_only_a { println!("  {} → {} only", s, diff.node_a); }
-    for s in &diff.services_only_b { println!("  {} → {} only", s, diff.node_b); }
+    for s in &diff.services_only_a {
+        println!("  {} → {} only", s, diff.node_a);
+    }
+    for s in &diff.services_only_b {
+        println!("  {} → {} only", s, diff.node_b);
+    }
 }
 
 /// Discover the local environment and build an inventory.
@@ -175,12 +219,40 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
 
     // Build tool list by checking PATH
     let dirmacs_tools = [
-        "aegis", "lancor", "nimakai", "pawan", "daedra", "doltclaw", "thulp",
-        "llama-server", "llama-cli", "wg",
-        "cargo", "rustc", "node", "bun", "deno", "go", "nim", "zig", "odin",
-        "python3", "python", "docker", "kubectl", "ollama",
-        "starship", "bat", "eza", "fd", "rg", "fzf", "zoxide", "delta",
-        "gh", "git",
+        "aegis",
+        "lancor",
+        "nimakai",
+        "pawan",
+        "daedra",
+        "doltclaw",
+        "thulp",
+        "llama-server",
+        "llama-cli",
+        "wg",
+        "cargo",
+        "rustc",
+        "node",
+        "bun",
+        "deno",
+        "go",
+        "nim",
+        "zig",
+        "odin",
+        "python3",
+        "python",
+        "docker",
+        "kubectl",
+        "ollama",
+        "starship",
+        "bat",
+        "eza",
+        "fd",
+        "rg",
+        "fzf",
+        "zoxide",
+        "delta",
+        "gh",
+        "git",
     ];
 
     let mut tools = Vec::new();
@@ -217,10 +289,7 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
             PathBuf::from("/opt"),
         ]
     } else {
-        vec![
-            PathBuf::from("/opt"),
-            dirs::home_dir().unwrap_or_default(),
-        ]
+        vec![PathBuf::from("/opt"), dirs::home_dir().unwrap_or_default()]
     };
 
     for base in &search_dirs {
@@ -245,7 +314,11 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
 
     // Shell info — use correct PATH separator per platform
     let path_var = std::env::var("PATH").unwrap_or_default();
-    let separator = if cfg!(target_os = "windows") { ';' } else { ':' };
+    let separator = if cfg!(target_os = "windows") {
+        ';'
+    } else {
+        ':'
+    };
     let path_dirs: Vec<String> = path_var.split(separator).map(|s| s.to_string()).collect();
     let default_shell = std::env::var("SHELL")
         .or_else(|_| std::env::var("COMSPEC"))
@@ -275,7 +348,10 @@ pub fn discover_local(node_name: &str, overlay_ip: &str) -> Result<NodeInventory
         repos,
         services,
         models,
-        shell: ShellInfo { default_shell, path_dirs },
+        shell: ShellInfo {
+            default_shell,
+            path_dirs,
+        },
     })
 }
 
@@ -360,10 +436,7 @@ fn parse_size(s: &str) -> u64 {
 /// Discover running services by checking common ports/processes.
 fn discover_services() -> Vec<ServiceInfo> {
     let mut services = Vec::new();
-    let checks = [
-        ("ollama", 11434, "ollama"),
-        ("docker", 2375, "docker"),
-    ];
+    let checks = [("ollama", 11434, "ollama"), ("docker", 2375, "docker")];
 
     for (name, port, binary) in &checks {
         if which::which(binary).is_ok() {
@@ -382,7 +455,8 @@ fn discover_services() -> Vec<ServiceInfo> {
 pub fn pull_remote(user: &str, host: &str, inventory_path: &str) -> Result<NodeInventory> {
     let output = std::process::Command::new("ssh")
         .args([
-            "-o", "ConnectTimeout=10",
+            "-o",
+            "ConnectTimeout=10",
             &format!("{}@{}", user, host),
             &format!("cat {}", inventory_path),
         ])
@@ -398,6 +472,32 @@ pub fn pull_remote(user: &str, host: &str, inventory_path: &str) -> Result<NodeI
     toml::from_str(&content).context("parsing remote inventory")
 }
 
+/// Spawn `cmd`, write `input` to its stdin, then wait and collect the output.
+///
+/// Setting `stdin` to [`std::process::Stdio::piped`] but calling
+/// [`std::process::Command::output`] instead would silently drop `input`:
+/// `output` never writes to a piped stdin before closing it, so the child
+/// reads EOF immediately and receives nothing.
+fn run_with_stdin(cmd: &mut std::process::Command, input: &[u8]) -> Result<std::process::Output> {
+    use std::io::Write;
+
+    let mut child = cmd
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .context("spawning command")?;
+
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("child stdin was not piped"))?
+        .write_all(input)
+        .context("writing to command stdin")?;
+
+    child.wait_with_output().context("waiting for command")
+}
+
 /// Push local inventory to a remote node via SSH.
 pub fn push_to_remote(
     inventory: &NodeInventory,
@@ -405,18 +505,21 @@ pub fn push_to_remote(
     host: &str,
     remote_path: &str,
 ) -> Result<()> {
-    let content = toml::to_string_pretty(inventory)
-        .context("serializing inventory")?;
+    let content = toml::to_string_pretty(inventory).context("serializing inventory")?;
 
-    let output = std::process::Command::new("ssh")
-        .args([
-            "-o", "ConnectTimeout=10",
+    let output = run_with_stdin(
+        std::process::Command::new("ssh").args([
+            "-o",
+            "ConnectTimeout=10",
             &format!("{}@{}", user, host),
-            &format!("mkdir -p $(dirname {}) && cat > {}", remote_path, remote_path),
-        ])
-        .stdin(std::process::Stdio::piped())
-        .output()
-        .context("SSH push")?;
+            &format!(
+                "mkdir -p $(dirname {}) && cat > {}",
+                remote_path, remote_path
+            ),
+        ]),
+        content.as_bytes(),
+    )
+    .context("SSH push")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -424,4 +527,61 @@ pub fn push_to_remote(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `run_with_stdin` must actually deliver the payload to the child: the
+    /// file the far side receives must equal the serialized bytes and parse
+    /// back. This guards against regressing to `.output()`, which drops stdin
+    /// and leaves the remote file empty. `sh -c 'cat > out'` stands in for the
+    /// remote `cat > path` so no SSH endpoint is needed.
+    #[test]
+    fn run_with_stdin_delivers_payload_to_child() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("received.toml");
+
+        let inventory = NodeInventory {
+            node: "test-node".to_string(),
+            overlay_ip: "10.42.0.3".to_string(),
+            timestamp: "2026-01-01T00:00:00Z".to_string(),
+            system: SystemInfo {
+                hostname: "test-host".to_string(),
+                os: "linux".to_string(),
+                arch: "x86_64".to_string(),
+                kernel: "6.0".to_string(),
+                cpu: "test-cpu".to_string(),
+                memory_gb: 8.0,
+                disk_total_gb: 100.0,
+                disk_avail_gb: 50.0,
+            },
+            tools: Vec::new(),
+            repos: Vec::new(),
+            services: Vec::new(),
+            models: Vec::new(),
+            shell: ShellInfo::default(),
+        };
+        let payload = toml::to_string_pretty(&inventory).unwrap();
+
+        // `sh -c 'cat > out'` writes exactly what it reads on stdin to a file.
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg("-c").arg(format!("cat > {}", out.display()));
+        run_with_stdin(&mut cmd, payload.as_bytes()).unwrap();
+
+        let received = std::fs::read_to_string(&out).unwrap();
+        assert!(!received.is_empty(), "remote file must not be empty");
+        assert_eq!(
+            received, payload,
+            "received bytes must match serialized payload"
+        );
+
+        // The far side must parse what it received back into the same field
+        // values, proving the payload arrives well-formed.
+        let parsed: NodeInventory = toml::from_str(&received).unwrap();
+        assert_eq!(parsed.node, "test-node");
+        assert_eq!(parsed.overlay_ip, "10.42.0.3");
+        assert_eq!(parsed.system.hostname, "test-host");
+    }
 }
