@@ -37,8 +37,12 @@ impl Context {
             PathBuf::from(path)
         } else {
             let cwd = std::env::current_dir().context("getting current directory")?;
-            Manifest::find(&cwd)
-                .ok_or_else(|| anyhow::anyhow!("no aegis.toml found (searched upward from {})", cwd.display()))?
+            Manifest::find(&cwd).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no aegis.toml found (searched upward from {})",
+                    cwd.display()
+                )
+            })?
         };
 
         let manifest = Manifest::load(&manifest_path)?;
@@ -57,9 +61,8 @@ impl Context {
         filter: Option<&str>,
     ) -> Result<Vec<Module>> {
         let profile = manifest.active_profile(self.profile.as_deref());
-        let active_modules: Option<Vec<&str>> = profile.map(|(_, p)| {
-            p.modules.iter().map(|s| s.as_str()).collect()
-        });
+        let active_modules: Option<Vec<&str>> =
+            profile.map(|(_, p)| p.modules.iter().map(|s| s.as_str()).collect());
 
         let mut modules = Vec::new();
         for module_ref in &manifest.modules {

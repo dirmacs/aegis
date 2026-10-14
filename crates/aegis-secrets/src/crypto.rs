@@ -1,9 +1,9 @@
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, OsRng},
 };
 use argon2::Argon2;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rand::RngCore;
 
 /// Derive a 256-bit key from a master password using Argon2id
@@ -25,8 +25,8 @@ pub fn derive_key(master_password: &str, salt: &[u8]) -> anyhow::Result<[u8; 32]
 /// Encrypt plaintext with AES-256-GCM.
 /// Returns base64(nonce || ciphertext).
 pub fn encrypt(plaintext: &str, key: &[u8; 32]) -> anyhow::Result<String> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| anyhow::anyhow!("cipher init: {}", e))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| anyhow::anyhow!("cipher init: {}", e))?;
 
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
@@ -54,8 +54,8 @@ pub fn decrypt(encrypted: &str, key: &[u8; 32]) -> anyhow::Result<String> {
     let (nonce_bytes, ciphertext) = combined.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| anyhow::anyhow!("cipher init: {}", e))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| anyhow::anyhow!("cipher init: {}", e))?;
 
     let plaintext = cipher
         .decrypt(nonce, ciphertext)

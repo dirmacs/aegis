@@ -62,9 +62,7 @@ fn resolve_single(source: &VariableSource) -> Result<String> {
             std::env::var(var_name).map_err(|_| anyhow::anyhow!("env var {} not set", var_name))
         }
         VariableSource::Command(cmd) => {
-            let output = Command::new("sh")
-                .args(["-c", cmd])
-                .output()?;
+            let output = Command::new("sh").args(["-c", cmd]).output()?;
             if !output.status.success() {
                 bail!("command '{}' failed", cmd);
             }

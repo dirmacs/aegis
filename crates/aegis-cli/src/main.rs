@@ -80,11 +80,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Set up tracing
-    let filter = if cli.verbose {
-        "debug"
-    } else {
-        "info"
-    };
+    let filter = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| filter.into()))
         .without_time()

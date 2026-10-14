@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use base64::Engine;
-use x25519_dalek::{StaticSecret, PublicKey};
 use rand::rngs::OsRng;
+use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::config::NetworkManifest;
 use crate::firewall;
@@ -33,7 +33,10 @@ impl WgKeypair {
     pub fn generate() -> Self {
         let private_key = StaticSecret::random_from_rng(OsRng);
         let public_key = PublicKey::from(&private_key);
-        Self { private_key, public_key }
+        Self {
+            private_key,
+            public_key,
+        }
     }
 
     /// Encode private key as base64 (for wg-quick config).
@@ -66,22 +69,26 @@ impl WgKeypair {
 
     /// Load private key from disk.
     pub fn load_private(path: &Path) -> Result<StaticSecret> {
-        let b64 = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim())
+        let b64 =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64.trim())
             .context("decoding WireGuard private key")?;
-        let key_bytes: [u8; 32] = bytes.try_into()
+        let key_bytes: [u8; 32] = bytes
+            .try_into()
             .map_err(|_| anyhow::anyhow!("invalid key length"))?;
         Ok(StaticSecret::from(key_bytes))
     }
 
     /// Load public key from disk.
     pub fn load_public(path: &Path) -> Result<PublicKey> {
-        let b64 = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim())
+        let b64 =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64.trim())
             .context("decoding WireGuard public key")?;
-        let key_bytes: [u8; 32] = bytes.try_into()
+        let key_bytes: [u8; 32] = bytes
+            .try_into()
             .map_err(|_| anyhow::anyhow!("invalid key length"))?;
         Ok(PublicKey::from(key_bytes))
     }
@@ -94,7 +101,8 @@ pub fn generate_config(
     private_key_b64: &str,
     peer_public_keys: &std::collections::HashMap<String, String>,
 ) -> Result<String> {
-    let peer = manifest.peer(peer_name)
+    let peer = manifest
+        .peer(peer_name)
         .ok_or_else(|| anyhow::anyhow!("peer '{}' not found in manifest", peer_name))?;
 
     let mut config = String::new();
@@ -156,8 +164,7 @@ pub fn generate_config(
 pub fn write_config(config: &str, dir: &Path, interface: &str) -> Result<PathBuf> {
     std::fs::create_dir_all(dir)?;
     let path = dir.join(format!("{}.conf", interface));
-    std::fs::write(&path, config)
-        .with_context(|| format!("writing {}", path.display()))?;
+    std::fs::write(&path, config).with_context(|| format!("writing {}", path.display()))?;
 
     #[cfg(unix)]
     {
@@ -237,7 +244,8 @@ action = "allow"
             "laptop",
             &laptop_kp.private_key_base64(),
             &pub_keys,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(config.contains("[Interface]"));
         assert!(config.contains("10.42.0.2/32"));

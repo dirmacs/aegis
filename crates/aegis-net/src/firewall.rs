@@ -91,10 +91,7 @@ fn matches_port(rule_port: &str, actual_port: u16) -> bool {
 }
 
 /// Resolve firewall rules to a set of allowed peer IPs for WireGuard config generation.
-pub fn resolve_allowed_peers(
-    manifest: &NetworkManifest,
-    for_peer: &str,
-) -> Vec<String> {
+pub fn resolve_allowed_peers(manifest: &NetworkManifest, for_peer: &str) -> Vec<String> {
     let _peer = match manifest.peer(for_peer) {
         Some(p) => p,
         None => return vec![],
@@ -199,11 +196,25 @@ mod tests {
     fn server_group_allows_443_only() {
         let config = test_config();
         assert_eq!(
-            evaluate(&config, Direction::Inbound, &["servers".to_string()], "web", 443, "tcp"),
+            evaluate(
+                &config,
+                Direction::Inbound,
+                &["servers".to_string()],
+                "web",
+                443,
+                "tcp"
+            ),
             FirewallAction::Allow
         );
         assert_eq!(
-            evaluate(&config, Direction::Inbound, &["servers".to_string()], "web", 22, "tcp"),
+            evaluate(
+                &config,
+                Direction::Inbound,
+                &["servers".to_string()],
+                "web",
+                22,
+                "tcp"
+            ),
             FirewallAction::Deny
         );
     }
@@ -225,7 +236,14 @@ mod tests {
     fn unknown_group_denied() {
         let config = test_config();
         assert_eq!(
-            evaluate(&config, Direction::Inbound, &["unknown".to_string()], "rando", 80, "tcp"),
+            evaluate(
+                &config,
+                Direction::Inbound,
+                &["unknown".to_string()],
+                "rando",
+                80,
+                "tcp"
+            ),
             FirewallAction::Deny
         );
     }

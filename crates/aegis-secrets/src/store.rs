@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{anyhow, Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use anyhow::{Context, Result, anyhow};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::crypto::{decrypt, encrypt, derive_key, generate_salt};
+use crate::crypto::{decrypt, derive_key, encrypt, generate_salt};
 
 /// An encrypted entry in the secret store
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct SecretStore {
     entries: HashMap<String, EncryptedEntry>,
     salt: [u8; 16],
     version: String,
-    encryption_key: Option<[u8; 32]>,  // Cached derived key from master password
+    encryption_key: Option<[u8; 32]>, // Cached derived key from master password
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,15 +48,15 @@ struct VaultFile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Meta {
-    salt: String,        // base64 encoded
+    salt: String, // base64 encoded
     version: String,
 }
 
 impl SecretStore {
     /// Default vault path: ~/.config/aegis/vault.toml
     pub fn default_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| anyhow!("Could not determine config directory"))?;
+        let config_dir =
+            dirs::config_dir().ok_or_else(|| anyhow!("Could not determine config directory"))?;
         Ok(config_dir.join("aegis").join("vault.toml"))
     }
 
@@ -99,8 +99,8 @@ impl SecretStore {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read vault file at {}", path.display()))?;
 
-        let vault_file: VaultFile = toml::from_str(&content)
-            .context("Failed to parse vault file as TOML")?;
+        let vault_file: VaultFile =
+            toml::from_str(&content).context("Failed to parse vault file as TOML")?;
 
         // Decode salt from base64
         let salt_bytes = STANDARD
@@ -145,8 +145,8 @@ impl SecretStore {
             secrets: self.entries.clone(),
         };
 
-        let content = toml::to_string_pretty(&vault_file)
-            .context("Failed to serialize vault to TOML")?;
+        let content =
+            toml::to_string_pretty(&vault_file).context("Failed to serialize vault to TOML")?;
 
         std::fs::write(&self.path, content)
             .with_context(|| format!("Failed to write vault file to {}", self.path.display()))?;
@@ -157,7 +157,8 @@ impl SecretStore {
 
     /// Set a secret value (encrypts and stores)
     pub fn set(&mut self, key: &str, value: &str, tags: &[&str]) -> Result<()> {
-        let encryption_key = self.encryption_key
+        let encryption_key = self
+            .encryption_key
             .ok_or_else(|| anyhow!("Vault not initialized with a master password"))?;
 
         let encrypted_value = encrypt(value, &encryption_key)?;
@@ -171,7 +172,10 @@ impl SecretStore {
                 entry
             }
             None => {
-                let entry = EncryptedEntry::new(encrypted_value, tags.iter().map(|&s| s.to_string()).collect());
+                let entry = EncryptedEntry::new(
+                    encrypted_value,
+                    tags.iter().map(|&s| s.to_string()).collect(),
+                );
                 self.entries.insert(key.to_string(), entry);
                 self.entries.get_mut(key).unwrap()
             }
@@ -183,10 +187,13 @@ impl SecretStore {
 
     /// Get a secret value (decrypts and returns)
     pub fn get(&self, key: &str) -> Result<String> {
-        let entry = self.entries.get(key)
+        let entry = self
+            .entries
+            .get(key)
             .ok_or_else(|| anyhow!("Secret '{}' not found", key))?;
 
-        let encryption_key = self.encryption_key
+        let encryption_key = self
+            .encryption_key
             .ok_or_else(|| anyhow!("Vault not initialized with a master password"))?;
 
         let plaintext = decrypt(&entry.encrypted_value, &encryption_key)?;
@@ -197,7 +204,8 @@ impl SecretStore {
 
     /// List all secret keys and their tags (not values)
     pub fn list(&self) -> Vec<(&str, Vec<&str>)> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .map(|(k, v)| (k.as_str(), v.tags.iter().map(|s| s.as_str()).collect()))
             .collect()
     }
@@ -273,7 +281,9 @@ mod tests {
         let master_password = "master123";
 
         let mut store = SecretStore::open(&vault_path, master_password).unwrap();
-        store.set("db_password", "s3cr3t!", &["dev", "database"]).unwrap();
+        store
+            .set("db_password", "s3cr3t!", &["dev", "database"])
+            .unwrap();
 
         let retrieved = store.get("db_password").unwrap();
         assert_eq!(retrieved, "s3cr3t!");

@@ -102,10 +102,7 @@ pub async fn run(args: StatusArgs, ctx: &Context) -> Result<()> {
             } else {
                 red.apply_to("✗")
             };
-            println!(
-                "  {icon} ${} ({})",
-                status.env_var, status.variable_key
-            );
+            println!("  {icon} ${} ({})", status.env_var, status.variable_key);
         }
         println!();
     }
@@ -140,9 +137,7 @@ pub async fn run(args: StatusArgs, ctx: &Context) -> Result<()> {
             let (icon, detail) = match status {
                 ConfigStatus::Ok => (green.apply_to("✓"), "ok".to_string()),
                 ConfigStatus::Missing => (red.apply_to("✗"), "missing".to_string()),
-                ConfigStatus::Drifted(msg) => {
-                    (yellow.apply_to("~"), format!("drifted: {msg}"))
-                }
+                ConfigStatus::Drifted(msg) => (yellow.apply_to("~"), format!("drifted: {msg}")),
                 ConfigStatus::Error(msg) => (red.apply_to("!"), format!("error: {msg}")),
             };
             println!("    {icon} {} → {} — {detail}", cfg.source, cfg.target);

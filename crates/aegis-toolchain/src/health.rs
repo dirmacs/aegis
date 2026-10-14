@@ -16,10 +16,7 @@ pub struct ToolHealth {
 
 /// Check the health of a single tool.
 pub fn check_tool(tool: &ToolEntry) -> ToolHealth {
-    let binary_name = tool
-        .binary_name
-        .as_deref()
-        .unwrap_or(&tool.name);
+    let binary_name = tool.binary_name.as_deref().unwrap_or(&tool.name);
 
     let binary_path = which::which(binary_name)
         .ok()
@@ -27,11 +24,7 @@ pub fn check_tool(tool: &ToolEntry) -> ToolHealth {
 
     let installed = binary_path.is_some();
 
-    let version = if installed {
-        get_version(tool)
-    } else {
-        None
-    };
+    let version = if installed { get_version(tool) } else { None };
 
     debug!(
         "tool {} — installed: {}, version: {:?}",

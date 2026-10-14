@@ -66,7 +66,11 @@ fn deploy_symlink(source: &Path, target: &Path, dry_run: bool) -> Result<()> {
         let link_target = std::fs::read_link(target)
             .with_context(|| format!("reading symlink {}", target.display()))?;
         if link_target == source {
-            info!("already linked: {} -> {}", target.display(), source.display());
+            info!(
+                "already linked: {} -> {}",
+                target.display(),
+                source.display()
+            );
             return Ok(());
         }
         // Remove existing symlink
@@ -88,7 +92,11 @@ fn deploy_symlink(source: &Path, target: &Path, dry_run: bool) -> Result<()> {
     }
 
     if dry_run {
-        info!("[dry-run] would symlink {} -> {}", target.display(), source.display());
+        info!(
+            "[dry-run] would symlink {} -> {}",
+            target.display(),
+            source.display()
+        );
     } else {
         #[cfg(unix)]
         std::os::unix::fs::symlink(source, target)
@@ -100,7 +108,11 @@ fn deploy_symlink(source: &Path, target: &Path, dry_run: bool) -> Result<()> {
 
 fn deploy_copy(source: &Path, target: &Path, dry_run: bool) -> Result<()> {
     if dry_run {
-        info!("[dry-run] would copy {} -> {}", source.display(), target.display());
+        info!(
+            "[dry-run] would copy {} -> {}",
+            source.display(),
+            target.display()
+        );
     } else {
         std::fs::copy(source, target)
             .with_context(|| format!("copying {} -> {}", source.display(), target.display()))?;
@@ -119,8 +131,7 @@ pub fn undeploy_config(target: &Path, dry_run: bool) -> Result<()> {
     if dry_run {
         info!("[dry-run] would remove {}", target.display());
     } else {
-        std::fs::remove_file(target)
-            .with_context(|| format!("removing {}", target.display()))?;
+        std::fs::remove_file(target).with_context(|| format!("removing {}", target.display()))?;
         info!("removed {}", target.display());
     }
 
@@ -243,7 +254,10 @@ mod tests {
         std::fs::write(&source, "hello").unwrap();
 
         deploy_config(&source, &target, LinkStrategy::Symlink, false).unwrap();
-        assert_eq!(check_config(&source, &target, LinkStrategy::Symlink), ConfigStatus::Ok);
+        assert_eq!(
+            check_config(&source, &target, LinkStrategy::Symlink),
+            ConfigStatus::Ok
+        );
     }
 
     #[test]
@@ -253,7 +267,10 @@ mod tests {
         let target = dir.path().join("target.txt");
         std::fs::write(&source, "hello").unwrap();
 
-        assert_eq!(check_config(&source, &target, LinkStrategy::Symlink), ConfigStatus::Missing);
+        assert_eq!(
+            check_config(&source, &target, LinkStrategy::Symlink),
+            ConfigStatus::Missing
+        );
     }
 
     #[test]
@@ -264,7 +281,10 @@ mod tests {
         std::fs::write(&source, "hello").unwrap();
 
         deploy_config(&source, &target, LinkStrategy::Copy, false).unwrap();
-        assert_eq!(check_config(&source, &target, LinkStrategy::Copy), ConfigStatus::Ok);
+        assert_eq!(
+            check_config(&source, &target, LinkStrategy::Copy),
+            ConfigStatus::Ok
+        );
     }
 
     #[test]

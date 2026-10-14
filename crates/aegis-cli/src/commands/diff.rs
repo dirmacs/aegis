@@ -49,11 +49,7 @@ pub async fn run(args: DiffArgs, ctx: &Context) -> Result<()> {
                         println!("{}", bold.apply_to(format!("── {} ──", module.name)));
                         module_has_changes = true;
                     }
-                    println!(
-                        "  {} {} (not deployed)",
-                        red.apply_to("✗"),
-                        cfg.target
-                    );
+                    println!("  {} {} (not deployed)", red.apply_to("✗"), cfg.target);
                     any_changes = true;
                     continue;
                 }
@@ -90,11 +86,9 @@ pub async fn run(args: DiffArgs, ctx: &Context) -> Result<()> {
                                 aegis_core::diff::DiffTag::Remove => {
                                     red.apply_to(format!("    -{}", line.content.trim_end()))
                                 }
-                                aegis_core::diff::DiffTag::Context => {
-                                    Style::new()
-                                        .dim()
-                                        .apply_to(format!("     {}", line.content.trim_end()))
-                                }
+                                aegis_core::diff::DiffTag::Context => Style::new()
+                                    .dim()
+                                    .apply_to(format!("     {}", line.content.trim_end())),
                             };
                             println!("{styled}");
                         }
@@ -107,11 +101,7 @@ pub async fn run(args: DiffArgs, ctx: &Context) -> Result<()> {
                         println!("{}", bold.apply_to(format!("── {} ──", module.name)));
                         module_has_changes = true;
                     }
-                    println!(
-                        "  {} {} (error: {e})",
-                        red.apply_to("!"),
-                        cfg.target
-                    );
+                    println!("  {} {} (error: {e})", red.apply_to("!"), cfg.target);
                     any_changes = true;
                 }
             }

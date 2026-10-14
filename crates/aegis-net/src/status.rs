@@ -32,7 +32,10 @@ pub fn check(manifest: &NetworkManifest, config_dir: &Path) -> NetworkStatus {
     let mut expired_certs = Vec::new();
 
     for name in manifest.peers.keys() {
-        let cert_path = config_dir.join("peers").join(name).join(format!("{}.cert", name));
+        let cert_path = config_dir
+            .join("peers")
+            .join(name)
+            .join(format!("{}.cert", name));
         if cert_path.exists() {
             peers_with_certs += 1;
             if let Ok(cert) = NodeCertificate::load(&cert_path) {
@@ -46,7 +49,9 @@ pub fn check(manifest: &NetworkManifest, config_dir: &Path) -> NetworkStatus {
     NetworkStatus {
         network_name: manifest.network.name.clone(),
         ca_valid: ca_status.is_ok(),
-        ca_expires: ca_status.ok().map(|ca| ca.ca_cert.expires_at.format("%Y-%m-%d").to_string()),
+        ca_expires: ca_status
+            .ok()
+            .map(|ca| ca.ca_cert.expires_at.format("%Y-%m-%d").to_string()),
         wg_available,
         wg_interface_up: wg_up,
         total_peers: manifest.peers.len(),

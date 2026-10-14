@@ -108,18 +108,18 @@ impl OpencodeInput {
 
         // Initialize providers from provider definitions
         for (provider_key, provider_input) in &self.providers {
-            let options = if provider_input.base_url.is_some() || provider_input.api_key_env.is_some()
-            {
-                Some(ProviderOptionsJson {
-                    base_url: provider_input.base_url.clone(),
-                    api_key: provider_input
-                        .api_key_env
-                        .as_ref()
-                        .map(|env| format!("{{env:{env}}}")),
-                })
-            } else {
-                None
-            };
+            let options =
+                if provider_input.base_url.is_some() || provider_input.api_key_env.is_some() {
+                    Some(ProviderOptionsJson {
+                        base_url: provider_input.base_url.clone(),
+                        api_key: provider_input
+                            .api_key_env
+                            .as_ref()
+                            .map(|env| format!("{{env:{env}}}")),
+                    })
+                } else {
+                    None
+                };
 
             providers.insert(
                 provider_key.clone(),
@@ -154,15 +154,16 @@ impl OpencodeInput {
                 None
             };
 
-            let chat_template_kwargs =
-                if model_input.thinking.is_some() || model_input.clear_thinking_disabled.is_some() {
-                    Some(ChatTemplateKwargs {
-                        enable_thinking: model_input.thinking,
-                        disable_clear_thinking: model_input.clear_thinking_disabled,
-                    })
-                } else {
-                    None
-                };
+            let chat_template_kwargs = if model_input.thinking.is_some()
+                || model_input.clear_thinking_disabled.is_some()
+            {
+                Some(ChatTemplateKwargs {
+                    enable_thinking: model_input.thinking,
+                    disable_clear_thinking: model_input.clear_thinking_disabled,
+                })
+            } else {
+                None
+            };
 
             let parameters = if model_input.temperature.is_some()
                 || model_input.top_p.is_some()
@@ -203,9 +204,7 @@ impl OpencodeInput {
             .default_model
             .as_ref()
             .map(|d| d.model.as_str())
-            .unwrap_or_else(|| {
-                self.models.keys().next().map(|k| k.as_str()).unwrap_or("")
-            });
+            .unwrap_or_else(|| self.models.keys().next().map(|k| k.as_str()).unwrap_or(""));
 
         if default.is_empty() {
             bail!("no default model specified and no models defined");

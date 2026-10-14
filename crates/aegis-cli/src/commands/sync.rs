@@ -27,7 +27,10 @@ pub async fn run(args: SyncArgs, ctx: &Context) -> Result<()> {
             let managed_path = module.base_path.join(&rule.managed_path);
 
             if !live_path.exists() {
-                tracing::debug!("skipping sync — live path not found: {}", live_path.display());
+                tracing::debug!(
+                    "skipping sync — live path not found: {}",
+                    live_path.display()
+                );
                 continue;
             }
 
@@ -73,10 +76,7 @@ pub async fn run(args: SyncArgs, ctx: &Context) -> Result<()> {
             green.apply_to("✓")
         );
     } else {
-        println!(
-            "{} Everything in sync",
-            green.apply_to("✓")
-        );
+        println!("{} Everything in sync", green.apply_to("✓"));
     }
 
     Ok(())
