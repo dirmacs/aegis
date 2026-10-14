@@ -683,7 +683,7 @@ mod tests {
         let node_cert = ca
             .sign_node(
                 "peer-a",
-                "10.42.0.2",
+                "203.0.113.2",
                 &["servers".to_string()],
                 &node_verifying.to_bytes(),
                 365,
@@ -735,7 +735,7 @@ mod tests {
         let rogue_cert = rogue_ca
             .sign_node(
                 "peer-a",
-                "10.42.0.2",
+                "203.0.113.2",
                 &["servers".to_string()],
                 &node_verifying.to_bytes(),
                 365,

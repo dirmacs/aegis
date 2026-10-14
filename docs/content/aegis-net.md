@@ -18,10 +18,10 @@
 
 ```bash
 # Initialize network with CA
-aegis net init --name example-mesh --cidr 10.42.0.0/24
+aegis net init --name example-mesh --cidr 203.0.113.0/24
 
 # Add peers (using RFC 5737 documentation IP for the lighthouse endpoint)
-aegis net add-peer lighthouse --ip 10.42.0.1 --groups servers --lighthouse --endpoint 203.0.113.1:51820
+aegis net add-peer lighthouse --ip 203.0.113.1 --groups servers --lighthouse --endpoint 203.0.113.1:51820
 aegis net add-peer alice-laptop --groups admin,dev
 aegis net add-peer bob-workstation --groups admin,dev
 
@@ -42,20 +42,20 @@ See `example/aegis-net.toml` for a complete reference manifest. By default, `aeg
 ```toml
 [network]
 name = "example-mesh"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 config_dir = "/etc/aegis-net"
 listen_port = 51820
 mtu = 1300
 interface = "aegis0"
 
 [peers.lighthouse]
-ip = "10.42.0.1"
+ip = "203.0.113.1"
 groups = ["servers"]
 endpoint = "203.0.113.1:51820"
 lighthouse = true
 
 [peers.alice-laptop]
-ip = "10.42.0.2"
+ip = "203.0.113.2"
 groups = ["admin", "dev"]
 
 [[firewall.inbound]]

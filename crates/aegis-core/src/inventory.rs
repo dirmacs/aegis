@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 pub struct NodeInventory {
     /// Node name from aegis-net manifest
     pub node: String,
-    /// Overlay IP (e.g. 10.42.0.3)
+    /// Overlay IP (e.g. 203.0.113.3)
     pub overlay_ip: String,
     /// When this snapshot was taken (ISO 8601)
     pub timestamp: String,
@@ -544,7 +544,7 @@ mod tests {
 
         let inventory = NodeInventory {
             node: "test-node".to_string(),
-            overlay_ip: "10.42.0.3".to_string(),
+            overlay_ip: "203.0.113.3".to_string(),
             timestamp: "2026-01-01T00:00:00Z".to_string(),
             system: SystemInfo {
                 hostname: "test-host".to_string(),
@@ -580,7 +580,7 @@ mod tests {
         // values, proving the payload arrives well-formed.
         let parsed: NodeInventory = toml::from_str(&received).unwrap();
         assert_eq!(parsed.node, "test-node");
-        assert_eq!(parsed.overlay_ip, "10.42.0.3");
+        assert_eq!(parsed.overlay_ip, "203.0.113.3");
         assert_eq!(parsed.system.hostname, "test-host");
     }
 }

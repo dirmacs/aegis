@@ -151,7 +151,7 @@ mod tests {
         let toml_str = r#"
 [network]
 name = "test"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 "#;
         toml::from_str(toml_str).unwrap()
     }
@@ -160,7 +160,7 @@ cidr = "10.42.0.0/24"
     fn next_ip_empty_network() {
         let manifest = test_manifest();
         let ip = next_available_ip(&manifest).unwrap();
-        assert_eq!(ip, IpAddr::V4(Ipv4Addr::new(10, 42, 0, 1)));
+        assert_eq!(ip, IpAddr::V4(Ipv4Addr::new(203, 0, 113, 1)));
     }
 
     #[test]
@@ -169,7 +169,7 @@ cidr = "10.42.0.0/24"
         manifest.peers.insert(
             "node1".to_string(),
             PeerConfig {
-                ip: IpAddr::V4(Ipv4Addr::new(10, 42, 0, 1)),
+                ip: IpAddr::V4(Ipv4Addr::new(203, 0, 113, 1)),
                 groups: vec![],
                 endpoint: None,
                 lighthouse: false,
@@ -177,7 +177,7 @@ cidr = "10.42.0.0/24"
             },
         );
         let ip = next_available_ip(&manifest).unwrap();
-        assert_eq!(ip, IpAddr::V4(Ipv4Addr::new(10, 42, 0, 2)));
+        assert_eq!(ip, IpAddr::V4(Ipv4Addr::new(203, 0, 113, 2)));
     }
 
     #[test]

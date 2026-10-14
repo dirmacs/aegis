@@ -459,19 +459,19 @@ mod tests {
         let toml_str = r#"
 [network]
 name = "mesh"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 interface = "aegis0"
 
 [peers.vps]
-ip = "10.42.0.1"
+ip = "203.0.113.1"
 groups = ["servers"]
 
 [peers.admin_box]
-ip = "10.42.0.2"
+ip = "203.0.113.2"
 groups = ["admin"]
 
 [peers.monitoring]
-ip = "10.42.0.3"
+ip = "203.0.113.3"
 groups = ["ops"]
 
 [firewall]
@@ -500,10 +500,10 @@ action = "allow"
 
         assert!(ruleset.contains("table inet aegis_aegis0"));
         assert!(ruleset.contains("iifname != \"aegis0\" accept"));
-        assert!(ruleset.contains("ip saddr 10.42.0.2 accept"));
-        assert!(ruleset.contains("ip saddr 10.42.0.3 tcp dport 8000-9000 accept"));
-        // Self ("vps" = 10.42.0.1) must not be emitted as an inbound source rule on itself
-        assert!(!ruleset.contains("ip saddr 10.42.0.1"));
+        assert!(ruleset.contains("ip saddr 203.0.113.2 accept"));
+        assert!(ruleset.contains("ip saddr 203.0.113.3 tcp dport 8000-9000 accept"));
+        // Self ("vps" = 203.0.113.1) must not be emitted as an inbound source rule on itself
+        assert!(!ruleset.contains("ip saddr 203.0.113.1"));
         assert!(ruleset.contains("iifname \"aegis0\" drop"));
     }
 
@@ -512,11 +512,11 @@ action = "allow"
         let toml_str = r#"
 [network]
 name = "mesh"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 interface = "aegis0\"; flush ruleset; #"
 
 [peers.vps]
-ip = "10.42.0.1"
+ip = "203.0.113.1"
 "#;
         let manifest: NetworkManifest = toml::from_str(toml_str).unwrap();
         assert!(render_nftables(&manifest, "vps").is_err());

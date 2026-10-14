@@ -25,7 +25,7 @@ pub struct NetworkManifest {
 pub struct NetworkConfig {
     /// Human-readable network name (e.g., "example-mesh")
     pub name: String,
-    /// Network CIDR (e.g., "10.42.0.0/24")
+    /// Network CIDR (e.g., "203.0.113.0/24")
     pub cidr: Ipv4Net,
     /// Directory for CA keys, certs, peer configs
     #[serde(default = "default_config_dir")]
@@ -190,16 +190,16 @@ mod tests {
         let toml_str = r#"
 [network]
 name = "example-mesh"
-cidr = "10.42.0.0/24"
+cidr = "203.0.113.0/24"
 
 [peers.lighthouse]
-ip = "10.42.0.1"
+ip = "203.0.113.1"
 groups = ["servers"]
 lighthouse = true
 endpoint = "203.0.113.1:51820"
 
 [peers.alice-laptop]
-ip = "10.42.0.2"
+ip = "203.0.113.2"
 groups = ["admin", "dev"]
 
 [[firewall.inbound]]
